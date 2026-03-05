@@ -1,0 +1,19 @@
+[project]
+name = "synapse"
+version = "0.1.0"
+description = "Turn your files into answers — local RAG ingestion pipeline"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "chromadb",
+    "sentence-transformers",
+    "pypdf",
+    "python-docx",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
