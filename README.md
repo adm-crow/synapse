@@ -1,5 +1,13 @@
 <div align="center">
   <img src="logo.svg" alt="Synapse" width="120" /><br/><br/>
+
+[![CI](https://github.com/adm-crow/synapse/actions/workflows/ci.yml/badge.svg)](https://github.com/adm-crow/synapse/actions/workflows/ci.yml)
+[![tests](https://img.shields.io/badge/tests-21%20passing-brightgreen?style=flat-square)](tests/)
+[![build](https://img.shields.io/github/actions/workflow/status/adm-crow/synapse/ci.yml?branch=main&style=flat-square&label=build)](https://github.com/adm-crow/synapse/actions/workflows/ci.yml)
+[![python](https://img.shields.io/badge/python-3.9%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
+[![license](https://img.shields.io/badge/license-MIT-brightgreen?style=flat-square)](LICENSE)
+[![pypi](https://img.shields.io/pypi/v/synapse-rag?style=flat-square&label=pypi)](https://pypi.org/project/synapse-rag/)
+
 </div>
 
 **synapse** is a local-first Python library for building file-based RAG pipelines — drop files into a folder, run the pipeline, and let any AI agent search your knowledge base with vector queries.
