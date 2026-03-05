@@ -221,18 +221,23 @@ synapse/
 
 ## 🗺️ Roadmap
 
-| | Item | Value |
-|---|---|---|
-| 📂 | **More formats** — `.pptx`, `.xlsx`, `.html`, `.epub`, `.odt` | Covers the most common enterprise and web document types |
-| ⚡ | **Incremental ingestion** — skip files that haven't changed (hash or mtime check) | Dramatically faster re-runs on large document sets |
-| 👁️ | **File watcher** — `watch()` function that monitors `./docs` and auto-ingests on change | Zero-touch pipeline: drop a file, it's immediately searchable |
-| ✂️ | **Semantic chunking** — split on sentence and paragraph boundaries instead of character count | Better chunk coherence → better retrieval quality |
-| 🧠 | **Pluggable embedders** — OpenAI, Cohere, HuggingFace Inference API as drop-in alternatives | Lets users trade local compute for hosted embedding quality |
-| 💾 | **Pluggable vector stores** — Qdrant, FAISS, Weaviate as alternatives to ChromaDB | Unlocks production-scale deployments and cloud-hosted stores |
-| 🔍 | **Re-ranking** — cross-encoder re-ranking of retrieved chunks before returning context | Significantly improves precision of top-k results |
-| 🏷️ | **Document metadata** — extract and store PDF author, creation date, title automatically | Richer context for agents and better filter-by-metadata queries |
-| 🖥️ | **CLI** — `synapse ingest`, `synapse purge`, `synapse sources` terminal commands | Enables use without writing any Python |
-| 📦 | **PyPI release** — publish to PyPI so `pip install synapse` works out of the box | Standard distribution for all users |
+- [x] **7 file formats** — `txt`, `md`, `pdf`, `docx`, `csv`, `json`, `jsonl`
+- [x] **Word-boundary chunking** — no mid-word cuts, configurable size, overlap and minimum chunk size
+- [x] **Local embeddings** — `sentence-transformers`, no API key, fully offline
+- [x] **ChromaDB** — persistent vector store, zero config
+- [x] **Idempotent ingestion** — upsert on re-run, never duplicates
+- [x] **Collection management** — `purge()`, `reset()`, `sources()`
+- [x] **CI/CD** — GitHub Actions pipeline across Python 3.9–3.13
+- [ ] **PyPI release** — publish so `pip install synapse` works out of the box
+- [ ] **More formats** — `.pptx`, `.xlsx`, `.html`, `.epub`, `.odt`
+- [ ] **Incremental ingestion** — skip unchanged files (hash or mtime check) for faster re-runs
+- [ ] **File watcher** — `watch()` that monitors `./docs` and auto-ingests on change
+- [ ] **Semantic chunking** — split on sentence and paragraph boundaries for better chunk coherence
+- [ ] **Pluggable embedders** — OpenAI, Cohere, HuggingFace Inference API as drop-in alternatives
+- [ ] **Pluggable vector stores** — Qdrant, FAISS, Weaviate as alternatives to ChromaDB
+- [ ] **Document metadata** — extract and store PDF author, creation date, title automatically
+- [ ] **Re-ranking** — cross-encoder re-ranking of retrieved chunks before returning context
+- [ ] **CLI** — `synapse ingest`, `synapse purge`, `synapse sources` terminal commands
 
 ---
 
