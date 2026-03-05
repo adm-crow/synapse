@@ -1,18 +1,16 @@
-import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from synapse.pipeline import ingest
+from synapse.pipeline import ingest, purge, reset, sources
 
 
-def make_docs_dir(*filenames_and_contents):
-    """Create a temp directory with the given (filename, content) pairs."""
-    tmpdir = tempfile.mkdtemp()
+def make_docs_dir(tmp_path, *filenames_and_contents):
+    """Populate tmp_path with (filename, content) pairs and return its str path."""
     for filename, content in filenames_and_contents:
-        Path(tmpdir, filename).write_text(content, encoding="utf-8")
-    return tmpdir
+        (tmp_path / filename).write_text(content, encoding="utf-8")
+    return str(tmp_path)
 
 
 @pytest.fixture
@@ -27,53 +25,139 @@ def mock_chroma():
         yield collection
 
 
-def test_ingest_txt_file(mock_chroma):
-    docs = make_docs_dir(("hello.txt", "Hello world " * 10))
-    ingest(source_dir=docs, db_path="/tmp/fake_db", verbose=False)
+# --- ingest ---
+
+def test_ingest_txt_file(mock_chroma, tmp_path):
+    docs = make_docs_dir(tmp_path, ("hello.txt", "Hello world " * 10))
+    ingest(source_dir=docs, db_path=str(tmp_path / "db"), verbose=False)
     assert mock_chroma.upsert.called
 
 
-def test_ingest_multiple_files(mock_chroma):
+def test_ingest_multiple_files(mock_chroma, tmp_path):
     docs = make_docs_dir(
+        tmp_path,
         ("a.txt", "Content of A " * 20),
         ("b.md", "Content of B " * 20),
     )
-    ingest(source_dir=docs, db_path="/tmp/fake_db", verbose=False)
+    ingest(source_dir=docs, db_path=str(tmp_path / "db"), verbose=False)
     assert mock_chroma.upsert.call_count == 2
 
 
-def test_ingest_is_idempotent(mock_chroma):
+def test_ingest_is_idempotent(mock_chroma, tmp_path):
     """Running ingest twice should call upsert both times (not insert)."""
-    docs = make_docs_dir(("doc.txt", "Some text " * 10))
-    ingest(source_dir=docs, db_path="/tmp/fake_db", verbose=False)
-    ingest(source_dir=docs, db_path="/tmp/fake_db", verbose=False)
+    docs = make_docs_dir(tmp_path, ("doc.txt", "Some text " * 10))
+    ingest(source_dir=docs, db_path=str(tmp_path / "db"), verbose=False)
+    ingest(source_dir=docs, db_path=str(tmp_path / "db"), verbose=False)
     assert mock_chroma.upsert.call_count == 2
 
 
-def test_ingest_skips_unsupported_files(mock_chroma):
-    docs = make_docs_dir(("image.png", b"fake png data".decode()))
-    ingest(source_dir=docs, db_path="/tmp/fake_db", verbose=False)
+def test_ingest_skips_unsupported_files(mock_chroma, tmp_path):
+    docs = make_docs_dir(tmp_path, ("image.png", "fake png data"))
+    ingest(source_dir=docs, db_path=str(tmp_path / "db"), verbose=False)
     mock_chroma.upsert.assert_not_called()
 
 
-def test_ingest_empty_file_is_skipped(mock_chroma):
-    docs = make_docs_dir(("empty.txt", ""))
-    ingest(source_dir=docs, db_path="/tmp/fake_db", verbose=False)
+def test_ingest_empty_file_is_skipped(mock_chroma, tmp_path):
+    docs = make_docs_dir(tmp_path, ("empty.txt", ""))
+    ingest(source_dir=docs, db_path=str(tmp_path / "db"), verbose=False)
     mock_chroma.upsert.assert_not_called()
 
 
-def test_ingest_missing_directory_raises():
+def test_ingest_missing_directory_raises(tmp_path):
     with pytest.raises(FileNotFoundError):
-        ingest(source_dir="/nonexistent/path", db_path="/tmp/fake_db")
+        ingest(source_dir=str(tmp_path / "nonexistent"), db_path=str(tmp_path / "db"))
 
 
-def test_upsert_payload_structure(mock_chroma):
+def test_upsert_payload_structure(mock_chroma, tmp_path):
     """Verify that ids, documents and metadatas are passed to upsert."""
-    docs = make_docs_dir(("test.txt", "word " * 100))
-    ingest(source_dir=docs, db_path="/tmp/fake_db", verbose=False)
+    docs = make_docs_dir(tmp_path, ("test.txt", "word " * 100))
+    ingest(source_dir=docs, db_path=str(tmp_path / "db"), verbose=False)
 
     call_kwargs = mock_chroma.upsert.call_args.kwargs
     assert "ids" in call_kwargs
     assert "documents" in call_kwargs
     assert "metadatas" in call_kwargs
     assert len(call_kwargs["ids"]) == len(call_kwargs["documents"])
+
+
+# --- purge ---
+
+def test_purge_removes_stale_chunks(tmp_path):
+    existing_file = tmp_path / "existing.txt"
+    existing_file.write_text("hello", encoding="utf-8")
+
+    collection = MagicMock()
+    collection.get.return_value = {
+        "ids": ["id1", "id2"],
+        "metadatas": [
+            {"source": str(tmp_path / "deleted.txt"), "chunk": 0},  # stale
+            {"source": str(existing_file), "chunk": 0},              # live
+        ],
+    }
+    client = MagicMock()
+    client.get_collection.return_value = collection
+
+    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client):
+        deleted = purge(db_path=str(tmp_path / "db"), verbose=False)
+
+    assert deleted == 1
+    collection.delete.assert_called_once_with(ids=["id1"])
+
+
+def test_purge_nothing_when_all_exist(tmp_path):
+    existing_file = tmp_path / "file.txt"
+    existing_file.write_text("hello", encoding="utf-8")
+
+    collection = MagicMock()
+    collection.get.return_value = {
+        "ids": ["id1"],
+        "metadatas": [{"source": str(existing_file), "chunk": 0}],
+    }
+    client = MagicMock()
+    client.get_collection.return_value = collection
+
+    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client):
+        deleted = purge(db_path=str(tmp_path / "db"), verbose=False)
+
+    assert deleted == 0
+    collection.delete.assert_not_called()
+
+
+# --- reset ---
+
+def test_reset_deletes_collection(tmp_path):
+    client = MagicMock()
+    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client):
+        reset(db_path=str(tmp_path / "db"), verbose=False)
+    client.delete_collection.assert_called_once_with(name="synapse")
+
+
+# --- sources ---
+
+def test_sources_returns_unique_sorted_files(tmp_path):
+    collection = MagicMock()
+    collection.get.return_value = {
+        "ids": ["id1", "id2", "id3"],
+        "metadatas": [
+            {"source": "/docs/b.txt", "chunk": 0},
+            {"source": "/docs/a.txt", "chunk": 0},
+            {"source": "/docs/b.txt", "chunk": 1},  # duplicate
+        ],
+    }
+    client = MagicMock()
+    client.get_collection.return_value = collection
+
+    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client):
+        result = sources(db_path=str(tmp_path / "db"))
+
+    assert result == ["/docs/a.txt", "/docs/b.txt"]
+
+
+def test_sources_returns_empty_if_no_collection(tmp_path):
+    client = MagicMock()
+    client.get_collection.side_effect = ValueError("Collection not found")
+
+    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client):
+        result = sources(db_path=str(tmp_path / "db"))
+
+    assert result == []

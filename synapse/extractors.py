@@ -1,4 +1,5 @@
 import csv
+import json
 from pathlib import Path
 
 
@@ -30,13 +31,45 @@ def extract_csv(path: Path) -> str:
         return "\n".join(", ".join(row) for row in reader)
 
 
+def _flatten_json(obj) -> str:
+    """Recursively extract all string values from a parsed JSON object."""
+    if isinstance(obj, str):
+        return obj
+    if isinstance(obj, dict):
+        return " ".join(_flatten_json(v) for v in obj.values() if v is not None)
+    if isinstance(obj, list):
+        return " ".join(_flatten_json(item) for item in obj)
+    return str(obj) if obj is not None else ""
+
+
+def extract_json(path: Path) -> str:
+    with open(path, encoding="utf-8", errors="ignore") as f:
+        data = json.load(f)
+    return _flatten_json(data)
+
+
+def extract_jsonl(path: Path) -> str:
+    parts = []
+    with open(path, encoding="utf-8", errors="ignore") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                parts.append(_flatten_json(json.loads(line)))
+            except json.JSONDecodeError:
+                pass
+    return "\n".join(parts)
+
+
 EXTRACTORS = {
     ".txt": extract_txt,
     ".md": extract_txt,
     ".pdf": extract_pdf,
     ".docx": extract_docx,
-    ".doc": extract_docx,  # python-docx can handle some .doc files
     ".csv": extract_csv,
+    ".json": extract_json,
+    ".jsonl": extract_jsonl,
 }
 
 

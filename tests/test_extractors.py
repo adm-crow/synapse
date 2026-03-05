@@ -1,4 +1,4 @@
-import csv
+import json
 import tempfile
 from pathlib import Path
 
@@ -41,8 +41,8 @@ def test_extract_csv():
 
 def test_extract_pdf():
     pypdf = pytest.importorskip("pypdf")
-    from pypdf import PdfWriter
     import io
+    from pypdf import PdfWriter
 
     writer = PdfWriter()
     writer.add_blank_page(width=200, height=200)
@@ -53,7 +53,6 @@ def test_extract_pdf():
         f.write(buf.getvalue())
         path = Path(f.name)
 
-    # Blank page extracts to empty string — just verify no exception
     result = extract(path)
     assert isinstance(result, str)
 
@@ -63,7 +62,6 @@ def test_extract_pdf():
 def test_extract_docx():
     pytest.importorskip("docx")
     from docx import Document
-    import tempfile
 
     doc = Document()
     doc.add_paragraph("Hello from docx")
@@ -74,6 +72,27 @@ def test_extract_docx():
     assert "Hello from docx" in extract(path)
 
 
+# --- json ---
+
+def test_extract_json():
+    data = {"title": "RAG guide", "body": "Retrieval Augmented Generation", "year": 2024}
+    path = write_temp(".json", json.dumps(data))
+    result = extract(path)
+    assert "RAG guide" in result
+    assert "Retrieval Augmented Generation" in result
+
+
+def test_extract_jsonl():
+    lines = [
+        json.dumps({"text": "First document"}),
+        json.dumps({"text": "Second document"}),
+    ]
+    path = write_temp(".jsonl", "\n".join(lines))
+    result = extract(path)
+    assert "First document" in result
+    assert "Second document" in result
+
+
 # --- unsupported ---
 
 def test_unsupported_extension_raises():
@@ -82,7 +101,14 @@ def test_unsupported_extension_raises():
         extract(path)
 
 
+def test_doc_is_not_supported():
+    # Legacy .doc (binary Word) is not supported — python-docx only handles .docx
+    assert not is_supported(Path("file.doc"))
+
+
 def test_is_supported():
     assert is_supported(Path("file.txt"))
     assert is_supported(Path("file.PDF"))  # case-insensitive
+    assert is_supported(Path("file.json"))
+    assert is_supported(Path("file.jsonl"))
     assert not is_supported(Path("file.mp3"))
