@@ -31,9 +31,7 @@ Your files  ──►  Extractor  ──►  Chunker  ──►  Embedder  ─�
 ## 📦 Installation
 
 ```bash
-pip install -e .
-# or
-uv add synapse
+pip install synapse
 ```
 
 Includes everything out of the box: `txt`, `md`, `csv`, `pdf`, `docx`, `json`, `jsonl`, embeddings, ChromaDB.
@@ -81,12 +79,20 @@ ingest(
 
 ## 🔌 Connecting to an AI agent
 
-synapse handles the **ingestion** half of RAG. Wire the ChromaDB collection to any LLM to build a complete agent:
+synapse handles the **ingestion** half of RAG. The full pattern — ingest once, then query on every user request:
+
+```python
+from synapse import ingest
+
+# Step 1 — run once to populate the vector database
+ingest("./docs")
+```
 
 ```python
 import chromadb
 from chromadb.utils import embedding_functions
 
+# Step 2 — connect your agent to the collection
 client = chromadb.PersistentClient(path="./synapse_db")
 ef = embedding_functions.SentenceTransformerEmbeddingFunction("all-MiniLM-L6-v2")
 collection = client.get_collection("synapse", embedding_function=ef)
@@ -94,7 +100,7 @@ collection = client.get_collection("synapse", embedding_function=ef)
 def ask(question: str) -> str:
     results = collection.query(query_texts=[question], n_results=4)
     context = "\n\n".join(results["documents"][0])
-    # pass context to your LLM of choice
+    # Step 3 — pass context to your LLM of choice
     return context
 
 print(ask("What is the refund policy?"))
@@ -182,29 +188,49 @@ All three functions accept the same `db_path` and `collection_name` arguments as
 
 ```
 synapse/
-├── pipeline.py         ← ingest(), purge(), reset(), sources()
-├── extractors.py       ← file extension → raw text
-└── chunker.py          ← raw text → overlapping word-boundary chunks
+├── docs/                        ← drop your files here
+├── synapse_db/                  ← ChromaDB writes here (auto-created)
+│
+└── synapse/
+    ├── __init__.py              ← public API: ingest, purge, reset, sources
+    ├── pipeline.py              ← orchestrates the full pipeline
+    │     ingest()               ·  scan → extract → chunk → embed → upsert
+    │     purge()                ·  delete chunks with missing source files
+    │     reset()                ·  wipe the entire collection
+    │     sources()              ·  list unique ingested file paths
+    │
+    ├── extractors.py            ← file extension → raw text string
+    │     .txt .md               ·  built-in open()
+    │     .pdf                   ·  pypdf
+    │     .docx                  ·  python-docx
+    │     .csv                   ·  built-in csv
+    │     .json .jsonl           ·  built-in json, recursive value flattening
+    │
+    └── chunker.py               ← raw text → overlapping chunks
+          chunk_text()           ·  word-boundary aware sliding window
+                                 ·  configurable size, overlap, min_chunk_size
 ```
 
-The central flow through every stage:
+Data flow from file to vector store:
 
 ```
-File on disk
-    │  extractors.py  →  raw text string
-    │  chunker.py     →  list of chunk strings (word-boundary aware)
-    │  ChromaDB ef    →  vectors (sentence-transformers)
-    ▼
-chromadb.PersistentClient  →  upsert(documents, ids, metadatas)
+  ┌─────────────────┐
+  │  File on disk   │
+  └────────┬────────┘
+           │ extractors.py
+           ▼
+  ┌─────────────────┐
+  │   Raw text      │
+  └────────┬────────┘
+           │ chunker.py  (word-boundary sliding window)
+           ▼
+  ┌──────────────────────────────────┐
+  │  chunk 0 │ chunk 1 │ chunk 2 … │
+  └────────┬─────────────────────────┘
+           │ SentenceTransformer embedding (local)
+           ▼
+  ┌──────────────────────────────────────────┐
+  │  ChromaDB  ·  vectors + metadata         │
+  │  { source: "/docs/file.pdf", chunk: 0 }  │
+  └──────────────────────────────────────────┘
 ```
-
----
-
-## 🧪 Tests
-
-```bash
-pip install -e ".[dev]"
-pytest tests/ -v
-```
-
-31 tests — chunker, extractors, and pipeline (ChromaDB mocked, fast).
