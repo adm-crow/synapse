@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from synapse_core.pipeline import ingest, purge, reset, sources
+from synapse_core.pipeline import ingest, purge, query, reset, sources
 
 
 def make_docs_dir(tmp_path, *filenames_and_contents):
@@ -208,3 +208,43 @@ def test_sources_returns_empty_if_no_collection(tmp_path):
         result = sources(db_path=str(tmp_path / "db"))
 
     assert result == []
+
+
+# --- query ---
+
+def test_query_returns_list_of_dicts(mock_chroma, tmp_path):
+    mock_chroma.query.return_value = {
+        "documents": [["chunk one", "chunk two"]],
+        "metadatas": [[
+            {"source": "/docs/a.txt", "chunk": 0},
+            {"source": "/docs/b.txt", "chunk": 1},
+        ]],
+        "distances": [[0.1, 0.5]],
+    }
+    results = query(text="test query", db_path=str(tmp_path / "db"))
+    assert len(results) == 2
+    assert results[0]["text"] == "chunk one"
+    assert results[0]["source"] == "/docs/a.txt"
+    assert results[0]["chunk"] == 0
+    assert results[0]["distance"] == 0.1
+    assert results[0]["score"] == round(1 / 1.1, 4)
+
+
+def test_query_score_perfect_at_zero_distance(mock_chroma, tmp_path):
+    mock_chroma.query.return_value = {
+        "documents": [["exact match"]],
+        "metadatas": [[{"source": "/a.txt", "chunk": 0}]],
+        "distances": [[0.0]],
+    }
+    results = query(text="test", db_path=str(tmp_path / "db"))
+    assert results[0]["score"] == 1.0
+
+
+def test_query_empty_collection_returns_empty(mock_chroma, tmp_path):
+    mock_chroma.query.return_value = {
+        "documents": [[]],
+        "metadatas": [[]],
+        "distances": [[]],
+    }
+    results = query(text="test", db_path=str(tmp_path / "db"))
+    assert results == []

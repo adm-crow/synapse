@@ -100,6 +100,52 @@ def ingest(
         print(f"\nDone. Collection '{collection_name}' in '{db_path}'")
 
 
+def query(
+    text: str,
+    db_path: str = "./synapse_db",
+    collection_name: str = "synapse",
+    n_results: int = 5,
+    embedding_model: str = "all-MiniLM-L6-v2",
+) -> List[dict]:
+    """
+    Semantic search over the ChromaDB collection.
+
+    Args:
+        text:             Query string.
+        db_path:          Path to the ChromaDB directory.
+        collection_name:  Name of the ChromaDB collection.
+        n_results:        Maximum number of results to return.
+        embedding_model:  SentenceTransformer model name (must match ingest).
+
+    Returns:
+        List of dicts sorted by relevance (highest score first), each with:
+        - text:     chunk content
+        - source:   origin file path
+        - score:    relevance score 0–1 (1 = perfect match)
+        - distance: raw ChromaDB L2 distance (lower = closer)
+        - chunk:    chunk index within the source document
+    """
+    collection = _get_collection(db_path, collection_name, embedding_model)
+    results = collection.query(
+        query_texts=[text],
+        n_results=n_results,
+        include=["documents", "metadatas", "distances"],
+    )
+    documents = results["documents"][0]  # type: ignore[index]
+    metadatas = results["metadatas"][0]  # type: ignore[index]
+    distances = results["distances"][0]  # type: ignore[index]
+    return [
+        {
+            "text": doc,
+            "source": meta.get("source", ""),
+            "score": round(1 / (1 + dist), 4),
+            "distance": round(dist, 4),
+            "chunk": meta.get("chunk", 0),
+        }
+        for doc, meta, dist in zip(documents, metadatas, distances)
+    ]
+
+
 def _source_exists(meta: dict) -> bool:
     """Return True if the chunk's source still exists on disk.
 
