@@ -3,10 +3,8 @@ import sqlite3
 from pathlib import Path
 from typing import List, Optional
 
-import chromadb
-from chromadb.utils import embedding_functions
-
 from .chunker import chunk_text
+from .pipeline import _get_collection
 
 
 def _row_to_text(row: dict, template: Optional[str]) -> str:
@@ -105,14 +103,7 @@ def ingest_sqlite(
             print(f"No records found in {db_path}::{table}")
         return
 
-    # ChromaDB client + embedding function
-    client = chromadb.PersistentClient(path=chroma_path)
-    ef = embedding_functions.SentenceTransformerEmbeddingFunction(
-        model_name=embedding_model
-    )
-    collection = client.get_or_create_collection(
-        name=collection_name, embedding_function=ef  # type: ignore[arg-type]
-    )
+    collection = _get_collection(chroma_path, collection_name, embedding_model)
 
     if verbose:
         print(f"Ingesting: {table} ({len(rows)} records)")

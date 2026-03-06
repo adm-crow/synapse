@@ -24,8 +24,8 @@ def mock_chroma():
     collection = MagicMock()
     client = MagicMock()
     client.get_or_create_collection.return_value = collection
-    with patch("synapse_core.sqlite_ingester.chromadb.PersistentClient", return_value=client), \
-         patch("synapse_core.sqlite_ingester.embedding_functions.SentenceTransformerEmbeddingFunction"):
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client), \
+         patch("synapse_core.pipeline.embedding_functions.SentenceTransformerEmbeddingFunction"):
         yield collection
 
 

@@ -4,7 +4,7 @@
 # ⚡Synapse
 
 [![CI](https://github.com/adm-crow/synapse/actions/workflows/ci.yml/badge.svg)](https://github.com/adm-crow/synapse/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/badge/tests-45%20passing-brightgreen?style=flat-square)](tests/)
+[![tests](https://img.shields.io/badge/tests-48%20passing-brightgreen?style=flat-square)](tests/)
 [![python](https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![license](https://img.shields.io/badge/license-Apache%202.0-brightgreen?style=flat-square)](LICENSE)
 [![pypi](https://img.shields.io/pypi/v/synapse-core?style=flat-square&label=pypi)](https://pypi.org/project/synapse-core/)
@@ -79,27 +79,32 @@ Ingesting: articles (120 records)
 
 ## Connecting to an AI agent
 
-synapse handles ingestion. Connect any agent to the collection it populates:
+synapse handles both ingestion and retrieval:
 
 ```python
-from synapse_core import ingest
-import chromadb
-from chromadb.utils import embedding_functions
+from synapse_core import ingest, query
 
 # Step 1 — ingest once
 ingest("./docs")
 
-# Step 2 — connect your agent
-client = chromadb.PersistentClient(path="./synapse_db")
-ef = embedding_functions.SentenceTransformerEmbeddingFunction("all-MiniLM-L6-v2")
-collection = client.get_collection("synapse", embedding_function=ef)
-
-# Step 3 — query on every request
+# Step 2 — query on every request
 def ask(question: str) -> str:
-    results = collection.query(query_texts=[question], n_results=4)
-    return "\n\n".join(results["documents"][0])
+    results = query(question, n_results=4)
+    return "\n\n".join(r["text"] for r in results)
 
 print(ask("What is the refund policy?"))
+```
+
+Each result is a plain dict — no ChromaDB types leak out:
+
+```python
+{
+    "text":     "chunk content...",
+    "source":   "/abs/path/to/file.txt",
+    "score":    0.91,   # relevance 0–1, higher is better
+    "distance": 0.09,   # raw ChromaDB L2 distance
+    "chunk":    2,      # index within the source document
+}
 ```
 
 > [!IMPORTANT]
@@ -190,7 +195,7 @@ synapse/
 ├── synapse_db/              ← ChromaDB writes here (auto-created)
 └── synapse_core/
     ├── __init__.py          ← public API
-    ├── pipeline.py          ← ingest · purge · reset · sources
+    ├── pipeline.py          ← ingest · query · purge · reset · sources
     ├── sqlite_ingester.py   ← ingest_sqlite
     ├── extractors.py        ← txt · md · pdf · docx · csv · json · jsonl
     └── chunker.py           ← word-boundary sliding window
@@ -208,7 +213,7 @@ synapse/
 - [x] **Collection management** — `purge()`, `reset()`, `sources()`
 - [x] **CI/CD** — GitHub Actions pipeline across Python 3.11–3.13
 - [x] **SQLite ingestion** — `ingest_sqlite()` to embed table records alongside files
-- [ ] **PyPI release** — publish so `pip install synapse-core` works out of the box
+- [x] **PyPI release** — `pip install synapse-core`
 - [ ] **More formats** — `.pptx`, `.xlsx`, `.html`, `.epub`, `.odt`
 - [ ] **Incremental ingestion** — skip unchanged files (hash or mtime check) for faster re-runs
 - [ ] **File watcher** — `watch()` that monitors a folder and auto-ingests on change

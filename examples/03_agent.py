@@ -3,7 +3,7 @@ Example 3 — Connecting a RAG agent
 ====================================
 
 Shows the full RAG pattern:
-  1. Retrieve relevant chunks from ChromaDB (synapse handles this)
+  1. Retrieve relevant chunks with synapse_core.query()
   2. Build a prompt with the retrieved context
   3. Call your LLM of choice
 
@@ -13,16 +13,7 @@ The `call_llm` function below is a stub — replace it with any real LLM:
   - Ollama:     requests.post("http://localhost:11434/api/generate", ...)
 """
 
-import chromadb
-from chromadb.utils import embedding_functions
-
-# --- ChromaDB setup -------------------------------------------------------
-
-client = chromadb.PersistentClient(path="./synapse_db")
-ef = embedding_functions.SentenceTransformerEmbeddingFunction(  # type: ignore[attr-defined]
-    model_name="all-MiniLM-L6-v2"
-)
-collection = client.get_collection("synapse", embedding_function=ef)  # type: ignore[arg-type]
+from synapse_core import query
 
 
 # --- LLM stub (replace with your real provider) --------------------------
@@ -36,15 +27,13 @@ def call_llm(prompt: str) -> str:
 
 def ask(question: str, n_results: int = 4) -> str:
     # 1. Retrieve the most relevant chunks
-    results = collection.query(query_texts=[question], n_results=n_results)
-    chunks = results["documents"][0]  # type: ignore[index]
-    metas = results["metadatas"][0]   # type: ignore[index]
+    results = query(text=question, n_results=n_results)
 
     # 2. Build context block with source attribution
-    context_parts = []
-    for chunk, meta in zip(chunks, metas):
-        source = meta.get("source", "unknown")
-        context_parts.append(f"[source: {source}]\n{chunk}")
+    context_parts = [
+        f"[source: {r['source']}]\n{r['text']}"
+        for r in results
+    ]
     context = "\n\n---\n\n".join(context_parts)
 
     # 3. Build prompt and call the LLM
