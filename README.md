@@ -206,7 +206,7 @@ synapse/
 - [x] **ChromaDB** — persistent vector store, zero config
 - [x] **Idempotent ingestion** — upsert on re-run, never duplicates
 - [x] **Collection management** — `purge()`, `reset()`, `sources()`
-- [x] **CI/CD** — GitHub Actions pipeline across Python 3.9–3.13
+- [x] **CI/CD** — GitHub Actions pipeline across Python 3.11–3.13
 - [x] **SQLite ingestion** — `ingest_sqlite()` to embed table records alongside files
 - [ ] **PyPI release** — publish so `pip install synapse-core` works out of the box
 - [ ] **More formats** — `.pptx`, `.xlsx`, `.html`, `.epub`, `.odt`

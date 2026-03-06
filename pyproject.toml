@@ -4,12 +4,30 @@ version = "0.1.0"
 description = "Turn your files into answers — local RAG ingestion pipeline"
 readme = "README.md"
 requires-python = ">=3.11"
+license = "Apache-2.0"
+keywords = ["rag", "ai", "llm", "vector", "chromadb", "embeddings", "local-ai", "nlp"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
 dependencies = [
     "chromadb",
     "sentence-transformers",
     "pypdf",
     "python-docx",
 ]
+
+[project.urls]
+Homepage = "https://github.com/adm-crow/synapse"
+Repository = "https://github.com/adm-crow/synapse"
+Issues = "https://github.com/adm-crow/synapse/issues"
 
 [build-system]
 requires = ["hatchling"]
