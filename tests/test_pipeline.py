@@ -74,6 +74,13 @@ def test_ingest_no_supported_files_verbose_false_no_output(mock_chroma, tmp_path
     assert capsys.readouterr().out == ""
 
 
+def test_ingest_skip_messages_suppressed_when_verbose_false(mock_chroma, tmp_path, capsys):
+    """Empty file triggers [skip] path — must produce no output when verbose=False."""
+    docs = make_docs_dir(tmp_path, ("empty.txt", ""))
+    ingest(source_dir=docs, db_path=str(tmp_path / "db"), verbose=False)
+    assert capsys.readouterr().out == ""
+
+
 def test_upsert_payload_structure(mock_chroma, tmp_path):
     """Verify that ids, documents and metadatas are passed to upsert."""
     docs = make_docs_dir(tmp_path, ("test.txt", "word " * 100))

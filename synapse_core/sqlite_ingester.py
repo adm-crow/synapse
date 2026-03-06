@@ -10,7 +10,13 @@ from .pipeline import _get_collection
 def _row_to_text(row: dict, template: Optional[str]) -> str:
     """Serialize a database row to a plain text string."""
     if template:
-        return template.format(**row)
+        try:
+            return template.format(**row)
+        except KeyError as e:
+            raise ValueError(
+                f"row_template references unknown column {e}. "
+                f"Available columns: {list(row.keys())}"
+            )
     return " | ".join(
         f"{k}: {v}" for k, v in row.items() if v is not None and str(v).strip()
     )

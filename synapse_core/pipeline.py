@@ -75,7 +75,8 @@ def ingest(
         try:
             text = extract(file_path)
         except Exception as e:
-            print(f"  [skip] {file_path.name}: {e}")
+            if verbose:
+                print(f"  [skip] {file_path.name}: {e}")
             continue
 
         chunks = chunk_text(
@@ -85,7 +86,8 @@ def ingest(
             min_chunk_size=min_chunk_size,
         )
         if not chunks:
-            print(f"  [skip] {file_path.name}: no text extracted")
+            if verbose:
+                print(f"  [skip] {file_path.name}: no text extracted")
             continue
 
         ids = [_make_id(file_path, source, i) for i in range(len(chunks))]
@@ -123,11 +125,12 @@ def query(
 
     Returns:
         List of dicts sorted by relevance (highest score first), each with:
-        - text:     chunk content
-        - source:   origin file path
-        - score:    relevance score 0–1 (1 = perfect match)
-        - distance: raw ChromaDB L2 distance (lower = closer)
-        - chunk:    chunk index within the source document
+        - text:        chunk content
+        - source:      origin file path
+        - source_type: "file" or "sqlite"
+        - score:       relevance score 0–1 (1 = perfect match)
+        - distance:    raw ChromaDB L2 distance (lower = closer)
+        - chunk:       chunk index within the source document
     """
     try:
         collection = _get_collection(db_path, collection_name, embedding_model, create=False)

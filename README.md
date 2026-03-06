@@ -4,7 +4,7 @@
 # ⚡Synapse
 
 [![CI](https://github.com/adm-crow/synapse/actions/workflows/ci.yml/badge.svg)](https://github.com/adm-crow/synapse/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/badge/tests-49%20passing-brightgreen?style=flat-square)](tests/)
+[![tests](https://img.shields.io/badge/tests-51%20passing-brightgreen?style=flat-square)](tests/)
 [![python](https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![license](https://img.shields.io/badge/license-Apache%202.0-brightgreen?style=flat-square)](LICENSE)
 [![pypi](https://img.shields.io/pypi/v/synapse-core?style=flat-square&label=pypi)](https://pypi.org/project/synapse-core/)
@@ -184,6 +184,23 @@ Each row is serialized to `"col: value | col: value | ..."` before chunking. Use
 
 </details>
 
+<details>
+<summary><code>query()</code></summary>
+
+```python
+query(
+    text            = "what is the refund policy?",
+    db_path         = "./synapse_db",       # ChromaDB persistence path
+    collection_name = "synapse",            # must match the name used at ingest
+    n_results       = 5,                    # max number of results to return
+    embedding_model = "all-MiniLM-L6-v2",  # must match the model used at ingest
+)
+```
+
+Returns a list of dicts: `text`, `source`, `source_type`, `score`, `distance`, `chunk`.
+
+</details>
+
 ---
 
 ## Architecture
@@ -211,6 +228,7 @@ synapse/
 - [x] **Collection management** — `purge()`, `reset()`, `sources()`
 - [x] **CI/CD** — GitHub Actions pipeline across Python 3.11–3.13
 - [x] **SQLite ingestion** — `ingest_sqlite()` to embed table records alongside files
+- [x] **Semantic search** — `query()` returns ranked results with relevance scores and source attribution
 - [x] **PyPI release** — `pip install synapse-core`
 - [ ] **More formats** — `.pptx`, `.xlsx`, `.html`, `.epub`, `.odt`
 - [ ] **Incremental ingestion** — skip unchanged files (hash or mtime check) for faster re-runs

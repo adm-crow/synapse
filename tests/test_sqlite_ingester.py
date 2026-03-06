@@ -147,3 +147,17 @@ def test_ingest_sqlite_empty_table(mock_chroma, tmp_path):
                         ["id INTEGER PRIMARY KEY", "title TEXT"], [])
     ingest_sqlite(db_path=db, table="empty", chroma_path=str(tmp_path / "db"), verbose=False)
     mock_chroma.upsert.assert_not_called()
+
+
+def test_ingest_sqlite_template_missing_column(mock_chroma, tmp_path):
+    db = create_test_db(
+        tmp_path, "articles",
+        ["id INTEGER PRIMARY KEY", "title TEXT"],
+        [(1, "Hello")],
+    )
+    with pytest.raises(ValueError, match="row_template"):
+        ingest_sqlite(
+            db_path=db, table="articles",
+            row_template="{title}: {nonexistent}",
+            chroma_path=str(tmp_path / "db"), verbose=False,
+        )
