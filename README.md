@@ -4,7 +4,7 @@
 # ⚡Synapse
 
 [![CI](https://github.com/adm-crow/synapse/actions/workflows/ci.yml/badge.svg)](https://github.com/adm-crow/synapse/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/badge/tests-43%20passing-brightgreen?style=flat-square)](tests/)
+[![tests](https://img.shields.io/badge/tests-45%20passing-brightgreen?style=flat-square)](tests/)
 [![python](https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![license](https://img.shields.io/badge/license-Apache%202.0-brightgreen?style=flat-square)](LICENSE)
 [![pypi](https://img.shields.io/pypi/v/synapse-rag?style=flat-square&label=pypi)](https://pypi.org/project/synapse-rag/)

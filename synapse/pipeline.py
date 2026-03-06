@@ -100,6 +100,19 @@ def ingest(
         print(f"\nDone. Collection '{collection_name}' in '{db_path}'")
 
 
+def _source_exists(meta: dict) -> bool:
+    """Return True if the chunk's source still exists on disk.
+
+    File sources: absolute path — check directly.
+    SQLite sources: stored as "/abs/path/to/db::table" — check only the db file part.
+    """
+    source = meta.get("source", "")
+    if meta.get("source_type") == "sqlite":
+        db_file = source.split("::")[0]
+        return Path(db_file).exists()
+    return Path(source).exists()
+
+
 def purge(
     db_path: str = "./synapse_db",
     collection_name: str = "synapse",
@@ -122,7 +135,7 @@ def purge(
     stale_ids = [
         id_
         for id_, meta in zip(results["ids"], results["metadatas"])  # type: ignore[arg-type]
-        if not Path(meta.get("source", "")).exists()
+        if not _source_exists(meta)
     ]
 
     if stale_ids:

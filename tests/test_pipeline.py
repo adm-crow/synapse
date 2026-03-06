@@ -110,6 +110,47 @@ def test_purge_removes_stale_chunks(tmp_path):
     collection.delete.assert_called_once_with(ids=["id1"])
 
 
+def test_purge_keeps_sqlite_chunks_when_db_exists(tmp_path):
+    db_file = tmp_path / "data.db"
+    db_file.write_text("", encoding="utf-8")  # just needs to exist on disk
+
+    collection = MagicMock()
+    collection.get.return_value = {
+        "ids": ["id1"],
+        "metadatas": [{
+            "source_type": "sqlite",
+            "source": f"{db_file}::articles",
+            "chunk": 0,
+        }],
+    }
+    client = MagicMock()
+    client.get_collection.return_value = collection
+
+    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client):
+        deleted = purge(db_path=str(tmp_path / "db"), verbose=False)
+
+    assert deleted == 0  # db file still exists — chunks must NOT be purged
+
+
+def test_purge_removes_sqlite_chunks_when_db_missing(tmp_path):
+    collection = MagicMock()
+    collection.get.return_value = {
+        "ids": ["id1"],
+        "metadatas": [{
+            "source_type": "sqlite",
+            "source": str(tmp_path / "gone.db::articles"),
+            "chunk": 0,
+        }],
+    }
+    client = MagicMock()
+    client.get_collection.return_value = collection
+
+    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client):
+        deleted = purge(db_path=str(tmp_path / "db"), verbose=False)
+
+    assert deleted == 1  # db file is gone — chunks must be purged
+
+
 def test_purge_nothing_when_all_exist(tmp_path):
     existing_file = tmp_path / "file.txt"
     existing_file.write_text("hello", encoding="utf-8")
