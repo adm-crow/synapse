@@ -48,10 +48,12 @@ Includes everything out of the box: `txt`, `md`, `csv`, `pdf`, `docx`, `json`, `
 
 ## 🚀 Quick start
 
+**From files:**
+
 ```python
 from synapse import ingest
 
-ingest("./docs")
+ingest("./my_documents")
 ```
 
 ```
@@ -62,8 +64,21 @@ Ingesting: meeting_notes.docx   ->   5 chunks stored
 Done. Collection 'synapse' in './synapse_db'
 ```
 
+**From a SQLite table:**
+
+```python
+from synapse import ingest_sqlite
+
+ingest_sqlite("./data.db", table="articles")
+```
+
+```
+Ingesting: articles (120 records)
+  -> 87 chunks stored
+```
+
 > [!TIP]
-> All parameters have sensible defaults. `ingest()` with no arguments scans `./docs` and stores everything in `./synapse_db`.
+> Both sources write to the **same ChromaDB collection** by default. Your agent queries files and database records in a single call.
 
 <details>
 <summary>See all <code>ingest()</code> options</summary>
@@ -118,7 +133,7 @@ print(ask("What is the refund policy?"))
 > synapse is model-agnostic — it only provides retrieved chunks as context. The same pattern works with Anthropic, OpenAI, Ollama, Mistral, or any other LLM.
 
 > [!NOTE]
-> Each chunk includes `source` (absolute file path) and `chunk` (index) in its metadata, so your agent always knows where an answer came from.
+> Each chunk carries `source_type` (`"file"` or `"sqlite"`), `source` (absolute path or `db::table`), and `chunk` (index) in its metadata — your agent always knows where an answer came from.
 
 <details>
 <summary>Need to run ingest from an async context?</summary>
@@ -145,7 +160,7 @@ Beyond ingestion, synapse exposes three utilities to keep your collection health
 
 ### `purge()` — remove stale chunks
 
-When files are deleted from `./docs`, their chunks remain in ChromaDB. `purge()` cleans them up:
+When source files are deleted, their chunks remain in ChromaDB. `purge()` cleans them up:
 
 ```python
 from synapse import purge
@@ -163,17 +178,18 @@ from synapse import reset
 reset()
 ```
 
-### `sources()` — inspect ingested files
+### `sources()` — inspect ingested sources
 
-List every source file currently stored in the collection:
+List every source currently stored in the collection (files and databases):
 
 ```python
 from synapse import sources
 
 for path in sources():
     print(path)
-# /home/user/docs/company_policy.pdf
-# /home/user/docs/product_faq.txt
+# /home/user/documents/company_policy.pdf
+# /home/user/documents/product_faq.txt
+# /home/user/data.db::articles
 ```
 
 All three functions accept the same `db_path` and `collection_name` arguments as `ingest()`.
@@ -261,6 +277,32 @@ synapse/
     └── chunker.py               ← raw text → overlapping chunks
           chunk_text()           ·  word-boundary aware sliding window
                                  ·  configurable size, overlap, min_chunk_size
+```
+
+Data flow from source to vector store:
+
+```
+  ┌─────────────────┐     ┌──────────────────┐
+  │  File on disk   │     │  SQLite table    │
+  └────────┬────────┘     └────────┬─────────┘
+           │ extractors.py          │ sqlite_ingester.py
+           │ (text extraction)      │ (row serialization)
+           ▼                        ▼
+  ┌────────────────────────────────────────┐
+  │              Raw text string           │
+  └────────────────────┬───────────────────┘
+                       │ chunker.py  (word-boundary sliding window)
+                       ▼
+  ┌──────────────────────────────────────┐
+  │  chunk 0  │  chunk 1  │  chunk 2 … │
+  └────────────────────┬─────────────────┘
+                       │ SentenceTransformer embedding (local)
+                       ▼
+  ┌────────────────────────────────────────────────────────────┐
+  │  ChromaDB  ·  vectors + metadata                          │
+  │  { source_type: "file",   source: "/docs/report.pdf" }   │
+  │  { source_type: "sqlite", source: "/data.db::articles" } │
+  └────────────────────────────────────────────────────────────┘
 ```
 
 ---

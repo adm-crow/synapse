@@ -85,7 +85,7 @@ def ingest(
 
         ids = [_make_id(file_path, source, i) for i in range(len(chunks))]
         metadatas = [
-            {"source": str(file_path.resolve()), "chunk": i}
+            {"source_type": "file", "source": str(file_path.resolve()), "chunk": i}
             for i in range(len(chunks))
         ]
 

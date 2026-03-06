@@ -78,6 +78,7 @@ def test_upsert_payload_structure(mock_chroma, tmp_path):
     assert "documents" in call_kwargs
     assert "metadatas" in call_kwargs
     assert len(call_kwargs["ids"]) == len(call_kwargs["documents"])
+    assert call_kwargs["metadatas"][0]["source_type"] == "file"
 
 
 # --- purge ---
