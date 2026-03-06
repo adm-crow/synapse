@@ -238,7 +238,6 @@ ingest_sqlite(
 
 ```
 synapse/
-├── docs/                        ← drop your files here
 ├── synapse_db/                  ← ChromaDB writes here (auto-created)
 │
 └── synapse/
