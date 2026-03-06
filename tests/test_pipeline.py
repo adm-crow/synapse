@@ -18,6 +18,7 @@ def mock_chroma():
     collection = MagicMock()
     client = MagicMock()
     client.get_or_create_collection.return_value = collection
+    client.get_collection.return_value = collection  # used by query()
 
     with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client), \
          patch("synapse_core.pipeline.embedding_functions.SentenceTransformerEmbeddingFunction"):
@@ -216,8 +217,8 @@ def test_query_returns_list_of_dicts(mock_chroma, tmp_path):
     mock_chroma.query.return_value = {
         "documents": [["chunk one", "chunk two"]],
         "metadatas": [[
-            {"source": "/docs/a.txt", "chunk": 0},
-            {"source": "/docs/b.txt", "chunk": 1},
+            {"source": "/docs/a.txt", "source_type": "file", "chunk": 0},
+            {"source": "/data.db::articles", "source_type": "sqlite", "chunk": 1},
         ]],
         "distances": [[0.1, 0.5]],
     }
@@ -225,9 +226,11 @@ def test_query_returns_list_of_dicts(mock_chroma, tmp_path):
     assert len(results) == 2
     assert results[0]["text"] == "chunk one"
     assert results[0]["source"] == "/docs/a.txt"
+    assert results[0]["source_type"] == "file"
     assert results[0]["chunk"] == 0
     assert results[0]["distance"] == 0.1
     assert results[0]["score"] == round(1 / 1.1, 4)
+    assert results[1]["source_type"] == "sqlite"
 
 
 def test_query_score_perfect_at_zero_distance(mock_chroma, tmp_path):
@@ -248,3 +251,13 @@ def test_query_empty_collection_returns_empty(mock_chroma, tmp_path):
     }
     results = query(text="test", db_path=str(tmp_path / "db"))
     assert results == []
+
+
+def test_query_raises_if_collection_not_found(tmp_path):
+    client = MagicMock()
+    client.get_collection.side_effect = ValueError("Collection not found")
+
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client), \
+         patch("synapse_core.pipeline.embedding_functions.SentenceTransformerEmbeddingFunction"):
+        with pytest.raises(ValueError, match="ingest()"):
+            query(text="test", db_path=str(tmp_path / "db"))

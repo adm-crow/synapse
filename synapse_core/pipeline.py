@@ -19,12 +19,16 @@ def _make_id(file_path: Path, source_dir: Path, chunk_index: int) -> str:
     return hashlib.md5(key.encode()).hexdigest()
 
 
-def _get_collection(db_path: str, collection_name: str, embedding_model: str):
+def _get_collection(db_path: str, collection_name: str, embedding_model: str, create: bool = True):
     client = chromadb.PersistentClient(path=db_path)
     ef = embedding_functions.SentenceTransformerEmbeddingFunction(
         model_name=embedding_model
     )
-    return client.get_or_create_collection(
+    if create:
+        return client.get_or_create_collection(
+            name=collection_name, embedding_function=ef  # type: ignore[arg-type]
+        )
+    return client.get_collection(
         name=collection_name, embedding_function=ef  # type: ignore[arg-type]
     )
 
@@ -125,7 +129,12 @@ def query(
         - distance: raw ChromaDB L2 distance (lower = closer)
         - chunk:    chunk index within the source document
     """
-    collection = _get_collection(db_path, collection_name, embedding_model)
+    try:
+        collection = _get_collection(db_path, collection_name, embedding_model, create=False)
+    except ValueError:
+        raise ValueError(
+            f"Collection '{collection_name}' not found in '{db_path}' — run ingest() first."
+        )
     results = collection.query(
         query_texts=[text],
         n_results=n_results,
@@ -138,6 +147,7 @@ def query(
         {
             "text": doc,
             "source": meta.get("source", ""),
+            "source_type": meta.get("source_type", "file"),
             "score": round(1 / (1 + dist), 4),
             "distance": round(dist, 4),
             "chunk": meta.get("chunk", 0),

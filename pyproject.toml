@@ -1,9 +1,10 @@
 [project]
 name = "synapse-core"
-version = "0.1.0"
+version = "0.2.0"
 description = "Turn your files into answers — local RAG ingestion pipeline"
 readme = "README.md"
 requires-python = ">=3.11"
+authors = [{name = "adm-crow"}]
 license = "Apache-2.0"
 keywords = ["rag", "ai", "llm", "vector", "chromadb", "embeddings", "local-ai", "nlp"]
 classifiers = [

@@ -4,7 +4,7 @@
 # ⚡Synapse
 
 [![CI](https://github.com/adm-crow/synapse/actions/workflows/ci.yml/badge.svg)](https://github.com/adm-crow/synapse/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/badge/tests-48%20passing-brightgreen?style=flat-square)](tests/)
+[![tests](https://img.shields.io/badge/tests-49%20passing-brightgreen?style=flat-square)](tests/)
 [![python](https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![license](https://img.shields.io/badge/license-Apache%202.0-brightgreen?style=flat-square)](LICENSE)
 [![pypi](https://img.shields.io/pypi/v/synapse-core?style=flat-square&label=pypi)](https://pypi.org/project/synapse-core/)
@@ -99,19 +99,17 @@ Each result is a plain dict — no ChromaDB types leak out:
 
 ```python
 {
-    "text":     "chunk content...",
-    "source":   "/abs/path/to/file.txt",
-    "score":    0.91,   # relevance 0–1, higher is better
-    "distance": 0.09,   # raw ChromaDB L2 distance
-    "chunk":    2,      # index within the source document
+    "text":        "chunk content...",
+    "source":      "/abs/path/to/file.txt",
+    "source_type": "file",    # "file" or "sqlite"
+    "score":       0.91,      # relevance 0–1, higher is better
+    "distance":    0.09,      # raw ChromaDB L2 distance
+    "chunk":       2,         # index within the source document
 }
 ```
 
 > [!IMPORTANT]
 > synapse is model-agnostic — pass the returned chunks as context to Anthropic, OpenAI, Ollama, or any other LLM.
-
-> [!NOTE]
-> Every chunk carries `source_type` (`"file"` or `"sqlite"`), `source` (absolute path or `db::table`), and `chunk` (index) in its metadata.
 
 ---
 
