@@ -29,7 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import chromadb
 from chromadb.utils import embedding_functions
 
-from synapse import ingest, ingest_sqlite, purge, reset, sources
+from synapse_core import ingest, ingest_sqlite, purge, reset, sources
 
 PASS = "[PASS]"
 FAIL = "[FAIL]"

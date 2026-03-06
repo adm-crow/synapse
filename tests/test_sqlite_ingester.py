@@ -3,7 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from synapse.sqlite_ingester import ingest_sqlite
+from synapse_core.sqlite_ingester import ingest_sqlite
 
 
 def create_test_db(tmp_path, table_name, columns_def, rows):
@@ -24,8 +24,8 @@ def mock_chroma():
     collection = MagicMock()
     client = MagicMock()
     client.get_or_create_collection.return_value = collection
-    with patch("synapse.sqlite_ingester.chromadb.PersistentClient", return_value=client), \
-         patch("synapse.sqlite_ingester.embedding_functions.SentenceTransformerEmbeddingFunction"):
+    with patch("synapse_core.sqlite_ingester.chromadb.PersistentClient", return_value=client), \
+         patch("synapse_core.sqlite_ingester.embedding_functions.SentenceTransformerEmbeddingFunction"):
         yield collection
 
 

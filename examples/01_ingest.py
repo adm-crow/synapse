@@ -9,7 +9,7 @@ Populate a ChromaDB collection from two sources:
 Run this once. Examples 02, 03 and 04 all read from the same collection.
 """
 
-from synapse import ingest, ingest_sqlite
+from synapse_core import ingest, ingest_sqlite
 
 # --- files ---------------------------------------------------------------
 # Recursively scans ./docs for .txt .md .pdf .docx .csv .json .jsonl files,

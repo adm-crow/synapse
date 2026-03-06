@@ -9,7 +9,7 @@ Demonstrates the three collection utilities:
   reset()   — wipe the entire collection (destructive, use with care)
 """
 
-from synapse import purge, reset, sources
+from synapse_core import purge, reset, sources
 
 DB_PATH = "./synapse_db"
 COLLECTION = "synapse"

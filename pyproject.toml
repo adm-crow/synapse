@@ -1,5 +1,5 @@
 [project]
-name = "synapse"
+name = "synapse-core"
 version = "0.1.0"
 description = "Turn your files into answers — local RAG ingestion pipeline"
 readme = "README.md"

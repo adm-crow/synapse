@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from synapse.extractors import extract, is_supported
+from synapse_core.extractors import extract, is_supported
 
 
 # --- helpers ---

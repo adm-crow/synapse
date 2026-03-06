@@ -1,6 +1,6 @@
 import pytest
 
-from synapse.chunker import chunk_text
+from synapse_core.chunker import chunk_text
 
 
 def test_empty_text_returns_empty_list():

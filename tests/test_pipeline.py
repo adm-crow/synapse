@@ -2,7 +2,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from synapse.pipeline import ingest, purge, reset, sources
+from synapse_core.pipeline import ingest, purge, reset, sources
 
 
 def make_docs_dir(tmp_path, *filenames_and_contents):
@@ -19,8 +19,8 @@ def mock_chroma():
     client = MagicMock()
     client.get_or_create_collection.return_value = collection
 
-    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client), \
-         patch("synapse.pipeline.embedding_functions.SentenceTransformerEmbeddingFunction"):
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client), \
+         patch("synapse_core.pipeline.embedding_functions.SentenceTransformerEmbeddingFunction"):
         yield collection
 
 
@@ -103,7 +103,7 @@ def test_purge_removes_stale_chunks(tmp_path):
     client = MagicMock()
     client.get_collection.return_value = collection
 
-    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client):
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client):
         deleted = purge(db_path=str(tmp_path / "db"), verbose=False)
 
     assert deleted == 1
@@ -126,7 +126,7 @@ def test_purge_keeps_sqlite_chunks_when_db_exists(tmp_path):
     client = MagicMock()
     client.get_collection.return_value = collection
 
-    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client):
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client):
         deleted = purge(db_path=str(tmp_path / "db"), verbose=False)
 
     assert deleted == 0  # db file still exists — chunks must NOT be purged
@@ -145,7 +145,7 @@ def test_purge_removes_sqlite_chunks_when_db_missing(tmp_path):
     client = MagicMock()
     client.get_collection.return_value = collection
 
-    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client):
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client):
         deleted = purge(db_path=str(tmp_path / "db"), verbose=False)
 
     assert deleted == 1  # db file is gone — chunks must be purged
@@ -163,7 +163,7 @@ def test_purge_nothing_when_all_exist(tmp_path):
     client = MagicMock()
     client.get_collection.return_value = collection
 
-    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client):
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client):
         deleted = purge(db_path=str(tmp_path / "db"), verbose=False)
 
     assert deleted == 0
@@ -174,7 +174,7 @@ def test_purge_nothing_when_all_exist(tmp_path):
 
 def test_reset_deletes_collection(tmp_path):
     client = MagicMock()
-    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client):
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client):
         reset(db_path=str(tmp_path / "db"), verbose=False)
     client.delete_collection.assert_called_once_with(name="synapse")
 
@@ -194,7 +194,7 @@ def test_sources_returns_unique_sorted_files(tmp_path):
     client = MagicMock()
     client.get_collection.return_value = collection
 
-    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client):
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client):
         result = sources(db_path=str(tmp_path / "db"))
 
     assert result == ["/docs/a.txt", "/docs/b.txt"]
@@ -204,7 +204,7 @@ def test_sources_returns_empty_if_no_collection(tmp_path):
     client = MagicMock()
     client.get_collection.side_effect = ValueError("Collection not found")
 
-    with patch("synapse.pipeline.chromadb.PersistentClient", return_value=client):
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client):
         result = sources(db_path=str(tmp_path / "db"))
 
     assert result == []

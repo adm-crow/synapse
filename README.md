@@ -7,7 +7,7 @@
 [![tests](https://img.shields.io/badge/tests-45%20passing-brightgreen?style=flat-square)](tests/)
 [![python](https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![license](https://img.shields.io/badge/license-Apache%202.0-brightgreen?style=flat-square)](LICENSE)
-[![pypi](https://img.shields.io/pypi/v/synapse-rag?style=flat-square&label=pypi)](https://pypi.org/project/synapse-rag/)
+[![pypi](https://img.shields.io/pypi/v/synapse-core?style=flat-square&label=pypi)](https://pypi.org/project/synapse-core/)
 
 </div>
 
@@ -32,11 +32,11 @@ Files / SQLite  ──►  Extract  ──►  Chunk  ──►  Embed  ──�
 ## Installation
 
 ```bash
-pip install synapse
+pip install synapse-core
 ```
 or
 ```bash
-uv add synapse
+uv add synapse-core
 ```
 
 ---
@@ -46,7 +46,7 @@ uv add synapse
 **Ingest files:**
 
 ```python
-from synapse import ingest
+from synapse_core import ingest
 
 ingest("./my_documents")
 ```
@@ -62,7 +62,7 @@ Done. Collection 'synapse' in './synapse_db'
 **Ingest a SQLite table:**
 
 ```python
-from synapse import ingest_sqlite
+from synapse_core import ingest_sqlite
 
 ingest_sqlite("./data.db", table="articles")
 ```
@@ -82,7 +82,7 @@ Ingesting: articles (120 records)
 synapse handles ingestion. Connect any agent to the collection it populates:
 
 ```python
-from synapse import ingest
+from synapse_core import ingest
 import chromadb
 from chromadb.utils import embedding_functions
 
@@ -113,7 +113,7 @@ print(ask("What is the refund policy?"))
 ## Collection management
 
 ```python
-from synapse import purge, reset, sources
+from synapse_core import purge, reset, sources
 
 purge()     # remove chunks whose source file no longer exists on disk
 reset()     # wipe the entire collection
@@ -188,7 +188,7 @@ Each row is serialized to `"col: value | col: value | ..."` before chunking. Use
 ```
 synapse/
 ├── synapse_db/              ← ChromaDB writes here (auto-created)
-└── synapse/
+└── synapse_core/
     ├── __init__.py          ← public API
     ├── pipeline.py          ← ingest · purge · reset · sources
     ├── sqlite_ingester.py   ← ingest_sqlite
@@ -208,7 +208,7 @@ synapse/
 - [x] **Collection management** — `purge()`, `reset()`, `sources()`
 - [x] **CI/CD** — GitHub Actions pipeline across Python 3.9–3.13
 - [x] **SQLite ingestion** — `ingest_sqlite()` to embed table records alongside files
-- [ ] **PyPI release** — publish so `pip install synapse` works out of the box
+- [ ] **PyPI release** — publish so `pip install synapse-core` works out of the box
 - [ ] **More formats** — `.pptx`, `.xlsx`, `.html`, `.epub`, `.odt`
 - [ ] **Incremental ingestion** — skip unchanged files (hash or mtime check) for faster re-runs
 - [ ] **File watcher** — `watch()` that monitors a folder and auto-ingests on change
