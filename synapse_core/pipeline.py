@@ -7,6 +7,7 @@ from chromadb.utils import embedding_functions
 
 from .chunker import chunk_text
 from .extractors import extract, is_supported
+from .logger import logger
 
 
 def _make_id(file_path: Path, source_dir: Path, chunk_index: int) -> str:
@@ -64,19 +65,19 @@ def ingest(
     files = [f for f in source.rglob("*") if f.is_file() and is_supported(f)]
     if not files:
         if verbose:
-            print(f"No supported files found in {source}")
+            logger.info("No supported files found in %s", source)
         return
 
     collection = _get_collection(db_path, collection_name, embedding_model)
 
     for file_path in files:
         if verbose:
-            print(f"Ingesting: {file_path.name}")
+            logger.info("Ingesting: %s", file_path.name)
         try:
             text = extract(file_path)
         except Exception as e:
             if verbose:
-                print(f"  [skip] {file_path.name}: {e}")
+                logger.warning("[skip] %s: %s", file_path.name, e)
             continue
 
         chunks = chunk_text(
@@ -87,7 +88,7 @@ def ingest(
         )
         if not chunks:
             if verbose:
-                print(f"  [skip] {file_path.name}: no text extracted")
+                logger.warning("[skip] %s: no text extracted", file_path.name)
             continue
 
         ids = [_make_id(file_path, source, i) for i in range(len(chunks))]
@@ -100,10 +101,10 @@ def ingest(
         collection.upsert(documents=chunks, ids=ids, metadatas=metadatas)  # type: ignore[arg-type]
 
         if verbose:
-            print(f"  -> {len(chunks)} chunks stored")
+            logger.info("  -> %d chunks stored", len(chunks))
 
     if verbose:
-        print(f"\nDone. Collection '{collection_name}' in '{db_path}'")
+        logger.info("Done. Collection '%s' in '%s'", collection_name, db_path)
 
 
 def query(
@@ -187,7 +188,7 @@ def purge(
         collection = client.get_collection(name=collection_name)
     except ValueError:
         if verbose:
-            print(f"Collection '{collection_name}' not found.")
+            logger.warning("Collection '%s' not found.", collection_name)
         return 0
 
     results = collection.get(include=["metadatas"])
@@ -200,9 +201,9 @@ def purge(
     if stale_ids:
         collection.delete(ids=stale_ids)
         if verbose:
-            print(f"Purged {len(stale_ids)} stale chunk(s).")
+            logger.info("Purged %d stale chunk(s).", len(stale_ids))
     elif verbose:
-        print("Nothing to purge — all sources still exist.")
+        logger.info("Nothing to purge — all sources still exist.")
 
     return len(stale_ids)
 
@@ -217,10 +218,10 @@ def reset(
     try:
         client.delete_collection(name=collection_name)
         if verbose:
-            print(f"Collection '{collection_name}' deleted.")
+            logger.info("Collection '%s' deleted.", collection_name)
     except ValueError:
         if verbose:
-            print(f"Collection '{collection_name}' not found.")
+            logger.warning("Collection '%s' not found.", collection_name)
 
 
 def sources(

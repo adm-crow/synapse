@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from .chunker import chunk_text
+from .logger import logger
 from .pipeline import _get_collection
 
 
@@ -106,13 +107,13 @@ def ingest_sqlite(
 
     if not rows:
         if verbose:
-            print(f"No records found in {db_path}::{table}")
+            logger.info("No records found in %s::%s", db_path, table)
         return
 
     collection = _get_collection(chroma_path, collection_name, embedding_model)
 
     if verbose:
-        print(f"Ingesting: {table} ({len(rows)} records)")
+        logger.info("Ingesting: %s (%d records)", table, len(rows))
 
     total_chunks = 0
     for row in rows:
@@ -152,4 +153,4 @@ def ingest_sqlite(
         total_chunks += len(chunks)
 
     if verbose:
-        print(f"  -> {total_chunks} chunks stored")
+        logger.info("  -> %d chunks stored", total_chunks)
