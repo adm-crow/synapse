@@ -82,23 +82,44 @@ ingest_sqlite("./data.db", table="articles")
 
 ## Connecting to an AI agent
 
-synapse handles both ingestion and retrieval:
+synapse handles ingestion and retrieval — you wire it to any LLM. Here's a complete example with the **Anthropic SDK**:
+
+```bash
+pip install synapse-core anthropic
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
 
 ```python
+import anthropic
 from synapse_core import ingest, query
 
 # Step 1 — ingest once
 ingest("./docs")
 
-# Step 2 — query on every request
+# Step 2 — RAG-powered agent
+client = anthropic.Anthropic()
+
 def ask(question: str) -> str:
-    results = query(question, n_results=4)
-    return "\n\n".join(r["text"] for r in results)
+    chunks = query(question, n_results=4)
+    context = "\n\n".join(r["text"] for r in chunks)
+
+    response = client.messages.create(
+        model="claude-opus-4-6",
+        max_tokens=1024,
+        system=(
+            "You are a helpful assistant. "
+            "Answer the user's question using ONLY the context below. "
+            "If the answer is not in the context, say so.\n\n"
+            f"CONTEXT:\n{context}"
+        ),
+        messages=[{"role": "user", "content": question}],
+    )
+    return response.content[0].text
 
 print(ask("What is the refund policy?"))
 ```
 
-Each result is a plain dict — no ChromaDB types leak out:
+Each `query()` result is a plain dict — no ChromaDB types leak out:
 
 ```python
 {
@@ -112,7 +133,7 @@ Each result is a plain dict — no ChromaDB types leak out:
 ```
 
 > [!IMPORTANT]
-> synapse is model-agnostic — pass the returned chunks as context to Anthropic, OpenAI, Ollama, or any other LLM.
+> synapse is model-agnostic — swap `anthropic` for `openai`, `ollama`, or any other SDK without changing a line of synapse code.
 
 ---
 
