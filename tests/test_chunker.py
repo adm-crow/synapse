@@ -2,7 +2,11 @@ import pytest
 
 from synapse_core.chunker import chunk_text
 
-nltk = pytest.importorskip("nltk")
+
+@pytest.fixture
+def require_nltk():
+    """Skip the test if nltk is not installed (sentence mode only)."""
+    pytest.importorskip("nltk")
 
 
 def test_empty_text_returns_empty_list():
@@ -75,20 +79,20 @@ def test_invalid_mode_raises():
 
 # --- sentence mode ---
 
-def test_sentence_mode_returns_chunks():
+def test_sentence_mode_returns_chunks(require_nltk):
     text = "The sky is blue. The grass is green. The sun is bright."
     chunks = chunk_text(text, chunk_size=500, min_chunk_size=1, mode="sentence")
     assert isinstance(chunks, list)
     assert len(chunks) >= 1
 
 
-def test_sentence_mode_short_text_single_chunk():
+def test_sentence_mode_short_text_single_chunk(require_nltk):
     text = "Hello world. This is a test."
     chunks = chunk_text(text, chunk_size=500, min_chunk_size=1, mode="sentence")
     assert len(chunks) == 1
 
 
-def test_sentence_mode_splits_on_boundaries():
+def test_sentence_mode_splits_on_boundaries(require_nltk):
     # 3 sentences of ~40 chars each; chunk_size=60 → should produce 2 chunks
     text = "The cat sat on the mat. The dog ran away fast. The bird flew high up."
     chunks = chunk_text(text, chunk_size=60, overlap=0, min_chunk_size=1, mode="sentence")
@@ -98,18 +102,18 @@ def test_sentence_mode_splits_on_boundaries():
         assert not chunk.endswith("The") and not chunk.endswith("a")
 
 
-def test_sentence_mode_respects_min_chunk_size():
+def test_sentence_mode_respects_min_chunk_size(require_nltk):
     text = "Hi. Hello world, this is a longer sentence that should survive."
     chunks = chunk_text(text, chunk_size=500, min_chunk_size=10, mode="sentence")
     for chunk in chunks:
         assert len(chunk) >= 10
 
 
-def test_sentence_mode_empty_text():
+def test_sentence_mode_empty_text(require_nltk):
     assert chunk_text("", mode="sentence") == []
 
 
-def test_sentence_mode_paragraph_split():
+def test_sentence_mode_paragraph_split(require_nltk):
     text = "First paragraph sentence one. First paragraph sentence two.\n\nSecond paragraph sentence one."
     chunks = chunk_text(text, chunk_size=500, min_chunk_size=1, mode="sentence")
     assert len(chunks) >= 1
@@ -118,7 +122,7 @@ def test_sentence_mode_paragraph_split():
     assert "Second paragraph" in full
 
 
-def test_sentence_mode_long_sentence_fallback():
+def test_sentence_mode_long_sentence_fallback(require_nltk):
     # A single sentence longer than chunk_size should fall back to word chunking
     long_sent = "word " * 300  # ~1500 chars, one "sentence"
     chunks = chunk_text(long_sent, chunk_size=500, overlap=50, min_chunk_size=1, mode="sentence")
