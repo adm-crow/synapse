@@ -4,7 +4,7 @@
 # ⚡Synapse
 
 [![CI](https://github.com/adm-crow/synapse/actions/workflows/ci.yml/badge.svg)](https://github.com/adm-crow/synapse/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/badge/tests-62%20passing-brightgreen?style=flat-square)](tests/)
+[![tests](https://img.shields.io/badge/tests-76%20passing-brightgreen?style=flat-square)](tests/)
 [![python](https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![license](https://img.shields.io/badge/license-Apache%202.0-brightgreen?style=flat-square)](LICENSE)
 [![pypi](https://img.shields.io/pypi/v/synapse-core?style=flat-square&label=pypi)](https://pypi.org/project/synapse-core/)
@@ -21,7 +21,7 @@ Files / SQLite  ──►  Extract  ──►  Chunk  ──►  Embed  ──�
 |---|---|---|
 | 📄 | **7 file formats** | `txt`, `md`, `csv`, `pdf`, `docx`, `json`, `jsonl` |
 | 🗄️ | **SQLite ingestion** | Embed table records alongside files |
-| ✂️ | **Smart chunking** | Word-boundary aware, configurable size & overlap |
+| ✂️ | **Smart chunking** | Word-boundary and sentence-aware, configurable size & overlap |
 | 🧠 | **Local embeddings** | `sentence-transformers` — no API key, fully offline |
 | 💾 | **ChromaDB** | Persistent vector store, zero config |
 | 🔁 | **Idempotent** | Re-run safely — chunks are upserted, never duplicated |
@@ -38,6 +38,12 @@ pip install synapse-core
 or
 ```bash
 uv add synapse-core
+```
+
+For sentence-aware chunking (`chunking="sentence"`), install the optional extra:
+
+```bash
+pip install synapse-core[sentence]
 ```
 
 ---
@@ -266,7 +272,7 @@ synapse/
     ├── pipeline.py          ← ingest · query · purge · reset · sources
     ├── sqlite_ingester.py   ← ingest_sqlite
     ├── extractors.py        ← txt · md · pdf · docx · csv · json · jsonl
-    ├── chunker.py           ← word-boundary sliding window
+    ├── chunker.py           ← word-boundary & sentence-aware chunking
     └── logger.py            ← colored logger · setup_logging()
 ```
 
@@ -285,10 +291,10 @@ synapse/
 - [x] **Semantic search** — `query()` returns ranked results with relevance scores and source attribution
 - [x] **Structured logging** — colored output, configurable level, optional file output via `setup_logging()`
 - [x] **PyPI release** — `pip install synapse-core`
-- [ ] **More formats** — `.pptx`, `.xlsx`, `.html`, `.epub`, `.odt`
 - [x] **Incremental ingestion** — skip unchanged files (SHA-256 hash check) for faster re-runs
-- [ ] **File watcher** — `watch()` that monitors a folder and auto-ingests on change
 - [x] **Semantic chunking** — split on sentence and paragraph boundaries via `chunking="sentence"`
+- [ ] **More formats** — `.pptx`, `.xlsx`, `.html`, `.epub`, `.odt`
+- [ ] **File watcher** — `watch()` that monitors a folder and auto-ingests on change
 - [ ] **Pluggable embedders** — OpenAI, Cohere, HuggingFace Inference API as alternatives
 - [ ] **Pluggable vector stores** — Qdrant, FAISS, Weaviate as alternatives to ChromaDB
 - [ ] **Document metadata** — extract and store PDF author, creation date, title automatically
