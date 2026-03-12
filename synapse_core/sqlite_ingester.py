@@ -41,6 +41,7 @@ def ingest_sqlite(
     overlap: int = 200,
     min_chunk_size: int = 50,
     embedding_model: str = "all-MiniLM-L6-v2",
+    chunking: str = "word",
     verbose: bool = True,
 ) -> None:
     """
@@ -63,6 +64,7 @@ def ingest_sqlite(
         overlap:          Character overlap between consecutive chunks.
         min_chunk_size:   Discard chunks shorter than this.
         embedding_model:  SentenceTransformer model name.
+        chunking:         "word" (default) or "sentence" (requires nltk).
         verbose:          Emit progress via the synapse_core logger.
     """
     if not Path(db_path).exists():
@@ -134,6 +136,7 @@ def ingest_sqlite(
             chunk_size=chunk_size,
             overlap=overlap,
             min_chunk_size=min_chunk_size,
+            mode=chunking,
         )
         if not chunks:
             continue

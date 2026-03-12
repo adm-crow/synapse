@@ -268,3 +268,94 @@ def test_query_raises_if_collection_not_found(tmp_path):
          patch("synapse_core.pipeline.embedding_functions.SentenceTransformerEmbeddingFunction"):
         with pytest.raises(ValueError, match="ingest()"):
             query(text="test", db_path=str(tmp_path / "db"))
+
+
+# --- incremental ingestion ---
+
+def test_incremental_skips_unchanged_file(tmp_path):
+    """File with same hash as stored → upsert must NOT be called."""
+    content = "Hello world " * 20
+    docs = make_docs_dir(tmp_path, ("doc.txt", content))
+    file_path = tmp_path / "doc.txt"
+
+    import hashlib
+    current_hash = hashlib.sha256(file_path.read_bytes(), usedforsecurity=False).hexdigest()
+
+    collection = MagicMock()
+    collection.get.return_value = {
+        "ids": ["id0"],
+        "metadatas": [{"source_type": "file", "source": str(file_path), "chunk": 0, "file_hash": current_hash}],
+    }
+    client = MagicMock()
+    client.get_or_create_collection.return_value = collection
+
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client), \
+         patch("synapse_core.pipeline.embedding_functions.SentenceTransformerEmbeddingFunction"):
+        ingest(source_dir=docs, db_path=str(tmp_path / "db"), incremental=True, verbose=False)
+
+    collection.upsert.assert_not_called()
+
+
+def test_incremental_reingests_changed_file(tmp_path):
+    """File with different stored hash → delete old chunks + upsert new ones."""
+    content = "Hello world " * 20
+    docs = make_docs_dir(tmp_path, ("doc.txt", content))
+    file_path = tmp_path / "doc.txt"
+
+    collection = MagicMock()
+    collection.get.return_value = {
+        "ids": ["old_id0"],
+        "metadatas": [{"source_type": "file", "source": str(file_path), "chunk": 0, "file_hash": "stale_hash"}],
+    }
+    client = MagicMock()
+    client.get_or_create_collection.return_value = collection
+
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client), \
+         patch("synapse_core.pipeline.embedding_functions.SentenceTransformerEmbeddingFunction"):
+        ingest(source_dir=docs, db_path=str(tmp_path / "db"), incremental=True, verbose=False)
+
+    collection.delete.assert_called_once_with(ids=["old_id0"])
+    assert collection.upsert.called
+
+
+def test_incremental_ingests_new_file(tmp_path):
+    """File with no existing chunks → ingest as normal."""
+    docs = make_docs_dir(tmp_path, ("new.txt", "Brand new content " * 10))
+
+    collection = MagicMock()
+    collection.get.return_value = {"ids": [], "metadatas": []}
+    client = MagicMock()
+    client.get_or_create_collection.return_value = collection
+
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client), \
+         patch("synapse_core.pipeline.embedding_functions.SentenceTransformerEmbeddingFunction"):
+        ingest(source_dir=docs, db_path=str(tmp_path / "db"), incremental=True, verbose=False)
+
+    collection.delete.assert_not_called()
+    assert collection.upsert.called
+
+
+def test_incremental_stores_hash_in_metadata(tmp_path):
+    """Metadata must contain file_hash when incremental=True."""
+    docs = make_docs_dir(tmp_path, ("doc.txt", "word " * 50))
+
+    collection = MagicMock()
+    collection.get.return_value = {"ids": [], "metadatas": []}
+    client = MagicMock()
+    client.get_or_create_collection.return_value = collection
+
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client), \
+         patch("synapse_core.pipeline.embedding_functions.SentenceTransformerEmbeddingFunction"):
+        ingest(source_dir=docs, db_path=str(tmp_path / "db"), incremental=True, verbose=False)
+
+    metadatas = collection.upsert.call_args.kwargs["metadatas"]
+    assert all("file_hash" in m for m in metadatas)
+
+
+def test_non_incremental_does_not_store_hash(mock_chroma, tmp_path):
+    """Default (incremental=False) must NOT add file_hash to metadata."""
+    docs = make_docs_dir(tmp_path, ("doc.txt", "word " * 50))
+    ingest(source_dir=docs, db_path=str(tmp_path / "db"), verbose=False)
+
+    metadatas = mock_chroma.upsert.call_args.kwargs["metadatas"]
+    assert all("file_hash" not in m for m in metadatas)

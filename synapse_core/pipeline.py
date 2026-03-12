@@ -20,6 +20,23 @@ def _make_id(file_path: Path, source_dir: Path, chunk_index: int) -> str:
     return hashlib.md5(key.encode(), usedforsecurity=False).hexdigest()
 
 
+def _file_hash(path: Path) -> str:
+    """SHA-256 of the file's raw bytes."""
+    return hashlib.sha256(path.read_bytes(), usedforsecurity=False).hexdigest()
+
+
+def _get_source_chunks(collection, source_str: str) -> dict:
+    """Return all ChromaDB entries for a given source path."""
+    try:
+        return collection.get(
+            where={"source": {"$eq": source_str}},
+            include=["metadatas"],
+        )
+    except Exception as e:
+        logger.debug("Could not query existing chunks for %s: %s", source_str, e)
+        return {"ids": [], "metadatas": []}
+
+
 def _get_collection(db_path: str, collection_name: str, embedding_model: str, create: bool = True):
     client = chromadb.PersistentClient(path=db_path)
     ef = embedding_functions.SentenceTransformerEmbeddingFunction(
@@ -42,6 +59,8 @@ def ingest(
     overlap: int = 200,
     min_chunk_size: int = 50,
     embedding_model: str = "all-MiniLM-L6-v2",
+    incremental: bool = False,
+    chunking: str = "word",
     verbose: bool = True,
 ) -> None:
     """
@@ -56,6 +75,9 @@ def ingest(
         overlap:          Character overlap between consecutive chunks.
         min_chunk_size:   Discard chunks shorter than this (chars).
         embedding_model:  SentenceTransformer model name.
+        incremental:      Skip files whose content hash hasn't changed since
+                          the last ingest. Changed files are re-ingested in full.
+        chunking:         "word" (default) or "sentence" (requires nltk).
         verbose:          Emit progress via the synapse_core logger.
     """
     source = Path(source_dir)
@@ -71,6 +93,20 @@ def ingest(
     collection = _get_collection(db_path, collection_name, embedding_model)
 
     for file_path in files:
+        source_str = str(file_path.resolve())
+
+        if incremental:
+            current_hash = _file_hash(file_path)
+            existing = _get_source_chunks(collection, source_str)
+            if existing["ids"]:
+                stored_hash = existing["metadatas"][0].get("file_hash")
+                if stored_hash == current_hash:
+                    if verbose:
+                        logger.info("Skipping (unchanged): %s", file_path.name)
+                    continue
+                # File changed — delete stale chunks before re-ingesting
+                collection.delete(ids=existing["ids"])
+
         if verbose:
             logger.info("Ingesting: %s", file_path.name)
         try:
@@ -85,6 +121,7 @@ def ingest(
             chunk_size=chunk_size,
             overlap=overlap,
             min_chunk_size=min_chunk_size,
+            mode=chunking,
         )
         if not chunks:
             if verbose:
@@ -93,9 +130,12 @@ def ingest(
 
         ids = [_make_id(file_path, source, i) for i in range(len(chunks))]
         metadatas = [
-            {"source_type": "file", "source": str(file_path.resolve()), "chunk": i}
+            {"source_type": "file", "source": source_str, "chunk": i}
             for i in range(len(chunks))
         ]
+        if incremental:
+            for meta in metadatas:
+                meta["file_hash"] = current_hash  # type: ignore[possibly-undefined]
 
         # Upsert so re-running is idempotent
         collection.upsert(documents=chunks, ids=ids, metadatas=metadatas)  # type: ignore[arg-type]

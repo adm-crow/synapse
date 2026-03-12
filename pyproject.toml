@@ -25,6 +25,9 @@ dependencies = [
     "python-docx",
 ]
 
+[project.optional-dependencies]
+sentence = ["nltk"]
+
 [project.urls]
 Homepage = "https://github.com/adm-crow/synapse"
 Repository = "https://github.com/adm-crow/synapse"
@@ -37,6 +40,7 @@ build-backend = "hatchling.build"
 [dependency-groups]
 dev = [
     "pytest>=8.4.2",
+    "nltk",
 ]
 
 [tool.pytest.ini_options]

@@ -178,9 +178,15 @@ ingest(
     overlap         = 200,                  # overlap between consecutive chunks
     min_chunk_size  = 50,                   # discard chunks shorter than this
     embedding_model = "all-MiniLM-L6-v2",  # any SentenceTransformer model name
+    incremental     = False,                # skip files whose content hasn't changed
+    chunking        = "word",               # "word" or "sentence" (requires nltk)
     verbose         = True,
 )
 ```
+
+**`incremental=True`** — on re-runs, each file's SHA-256 hash is compared against the stored hash. Unchanged files are skipped entirely; changed files are deleted and re-ingested. Zero overhead on the first run.
+
+**`chunking="sentence"`** — splits on paragraph then sentence boundaries using `nltk`. Requires `pip install synapse-core[sentence]`. Falls back to word-boundary splitting for sentences longer than `chunk_size`.
 
 </details>
 
@@ -200,6 +206,7 @@ ingest_sqlite(
     overlap         = 200,
     min_chunk_size  = 50,
     embedding_model = "all-MiniLM-L6-v2",
+    chunking        = "word",               # "word" or "sentence" (requires nltk)
     verbose         = True,
 )
 ```
@@ -279,9 +286,9 @@ synapse/
 - [x] **Structured logging** — colored output, configurable level, optional file output via `setup_logging()`
 - [x] **PyPI release** — `pip install synapse-core`
 - [ ] **More formats** — `.pptx`, `.xlsx`, `.html`, `.epub`, `.odt`
-- [ ] **Incremental ingestion** — skip unchanged files (hash or mtime check) for faster re-runs
+- [x] **Incremental ingestion** — skip unchanged files (SHA-256 hash check) for faster re-runs
 - [ ] **File watcher** — `watch()` that monitors a folder and auto-ingests on change
-- [ ] **Semantic chunking** — split on sentence and paragraph boundaries
+- [x] **Semantic chunking** — split on sentence and paragraph boundaries via `chunking="sentence"`
 - [ ] **Pluggable embedders** — OpenAI, Cohere, HuggingFace Inference API as alternatives
 - [ ] **Pluggable vector stores** — Qdrant, FAISS, Weaviate as alternatives to ChromaDB
 - [ ] **Document metadata** — extract and store PDF author, creation date, title automatically
