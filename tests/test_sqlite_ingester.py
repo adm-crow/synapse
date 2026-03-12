@@ -161,3 +161,19 @@ def test_ingest_sqlite_template_missing_column(mock_chroma, tmp_path):
             row_template="{title}: {nonexistent}",
             chroma_path=str(tmp_path / "db"), verbose=False,
         )
+
+
+def test_ingest_sqlite_template_null_value_renders_empty(mock_chroma, tmp_path):
+    """NULL column values must render as '' in row_template, not 'None'."""
+    db = create_test_db(
+        tmp_path, "articles",
+        ["id INTEGER PRIMARY KEY", "title TEXT", "body TEXT"],
+        [(1, None, "body word " * 20)],
+    )
+    ingest_sqlite(
+        db_path=db, table="articles",
+        row_template="{title}: {body}",
+        chroma_path=str(tmp_path / "db"), verbose=False,
+    )
+    docs = mock_chroma.upsert.call_args.kwargs["documents"]
+    assert all("None" not in d for d in docs)

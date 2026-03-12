@@ -12,7 +12,7 @@ def _row_to_text(row: dict, template: Optional[str]) -> str:
     """Serialize a database row to a plain text string."""
     if template:
         try:
-            return template.format(**row)
+            return template.format(**{k: (v if v is not None else "") for k, v in row.items()})
         except KeyError as e:
             raise ValueError(
                 f"row_template references unknown column {e}. "
