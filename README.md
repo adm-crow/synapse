@@ -134,13 +134,20 @@ synapse ingest-sqlite ./data.db --table articles
 synapse query "what is the refund policy?"
 
 # AI-powered answer — set your API key first, then query
-# Anthropic
+
+# Anthropic — macOS/Linux
 export ANTHROPIC_API_KEY="sk-ant-..."
+# Anthropic — Windows PowerShell
+$env:ANTHROPIC_API_KEY = "sk-ant-..."
+
 synapse query "what is the refund policy?" --ai
 synapse query "what is the refund policy?" --ai --provider anthropic --model claude-sonnet-4-5
 
-# OpenAI
+# OpenAI — macOS/Linux
 export OPENAI_API_KEY="sk-..."
+# OpenAI — Windows PowerShell
+$env:OPENAI_API_KEY = "sk-..."
+
 synapse query "what is the refund policy?" --ai --provider openai --model gpt-4o
 
 # Ollama (local, no key needed — just start the server)
