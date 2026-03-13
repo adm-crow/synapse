@@ -6,7 +6,7 @@
   <p><strong>Local-first RAG library for Python — ingest files, query semantically, feed any AI agent.</strong></p>
 
   [![CI](https://github.com/adm-crow/synapse/actions/workflows/ci.yml/badge.svg)](https://github.com/adm-crow/synapse/actions/workflows/ci.yml)
-  [![tests](https://img.shields.io/badge/tests-102%20passing-brightgreen?style=flat-square)](tests/)
+  [![tests](https://img.shields.io/badge/tests-107%20passing-brightgreen?style=flat-square)](tests/)
   [![PyPI](https://img.shields.io/pypi/v/synapse-core?style=flat-square&color=blue)](https://pypi.org/project/synapse-core/)
   [![Python](https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
   [![License](https://img.shields.io/badge/license-Apache%202.0-green?style=flat-square)](LICENSE)
@@ -130,8 +130,15 @@ synapse ingest ./docs --chunking sentence
 # Ingest a SQLite table
 synapse ingest-sqlite ./data.db --table articles
 
-# Semantic search
+# Semantic search (raw chunks)
 synapse query "what is the refund policy?"
+
+# AI-powered answer (auto-detects provider from env vars)
+synapse query "what is the refund policy?" --ai
+
+# Explicit provider and model
+synapse query "what is the refund policy?" --ai --provider openai --model gpt-4o
+synapse query "what is the refund policy?" --ai --provider ollama --model mistral
 
 # List all indexed sources
 synapse sources

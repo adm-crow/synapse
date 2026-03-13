@@ -3,6 +3,7 @@ import click
 from . import __version__
 from .pipeline import ingest, purge, query, reset, sources
 from .sqlite_ingester import ingest_sqlite
+from .ai import PROVIDERS, DEFAULT_MODELS, detect_provider, generate_answer
 
 
 @click.group()
@@ -98,8 +99,27 @@ def ingest_sqlite_cmd(
               help="Collection name.")
 @click.option("-n", "--n-results", default=5, show_default=True,
               help="Number of results to return.")
-def query_cmd(text: str, db_path: str, collection: str, n_results: int) -> None:
-    """Semantic search over the ChromaDB collection."""
+@click.option("--ai", "use_ai", is_flag=True,
+              help="Generate an AI answer from the retrieved chunks.")
+@click.option("--provider", default=None,
+              type=click.Choice(list(PROVIDERS), case_sensitive=False),
+              help="LLM provider (anthropic, openai, ollama). Auto-detected if omitted.")
+@click.option("--model", default=None,
+              help="Model name override (e.g. gpt-4o, llama3).")
+def query_cmd(
+    text: str,
+    db_path: str,
+    collection: str,
+    n_results: int,
+    use_ai: bool,
+    provider: str | None,
+    model: str | None,
+) -> None:
+    """Semantic search over the ChromaDB collection.
+
+    Add --ai to generate a synthesized answer via an LLM.
+    Provider is auto-detected from ANTHROPIC_API_KEY / OPENAI_API_KEY / Ollama.
+    """
     try:
         results = query(
             text=text,
@@ -114,6 +134,49 @@ def query_cmd(text: str, db_path: str, collection: str, n_results: int) -> None:
     if not results:
         click.echo("No results found.")
         return
+
+    if use_ai:
+        # Resolve provider
+        resolved = provider or detect_provider()
+        if resolved is None:
+            click.echo(
+                "Error: no AI provider detected.\n"
+                "Set ANTHROPIC_API_KEY, OPENAI_API_KEY, or start 'ollama serve'.\n"
+                "You can also pass --provider explicitly.",
+                err=True,
+            )
+            raise SystemExit(1)
+
+        resolved_model = model or DEFAULT_MODELS.get(resolved, "")
+        context = "\n\n".join(r["text"] for r in results)
+
+        try:
+            answer = generate_answer(
+                question=text,
+                context=context,
+                provider=resolved,
+                model=resolved_model,
+            )
+        except (ImportError, RuntimeError, ValueError) as e:
+            click.echo(f"Error: {e}", err=True)
+            raise SystemExit(1)
+
+        click.echo(f"\nAnswer  [{resolved} / {resolved_model}]")
+        click.echo("─" * 60)
+        click.echo(answer)
+        click.echo("\nSources")
+        click.echo("─" * 60)
+        seen: set[str] = set()
+        for r in results:
+            src = r["source"]
+            if src not in seen:
+                title = f"  [{r['doc_title']}]" if r.get("doc_title") else ""
+                click.echo(f"  [{r['score']:.2f}] {src}{title}")
+                seen.add(src)
+        click.echo()
+        return
+
+    # Default: raw results
     for i, r in enumerate(results, 1):
         title = f" [{r['doc_title']}]" if r.get("doc_title") else ""
         click.echo(

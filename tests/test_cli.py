@@ -100,7 +100,7 @@ def test_cli_reset_aborts_without_confirmation(mock_reset):
 def test_cli_version():
     result = CliRunner().invoke(cli, ["--version"])
     assert result.exit_code == 0
-    assert "0.5.0" in result.output
+    assert "0.5.1" in result.output
 
 
 # --- ingest-sqlite ---
@@ -122,6 +122,73 @@ def test_cli_ingest_sqlite_missing_table_errors(mock_ingest_sqlite):
     result = CliRunner().invoke(cli, ["ingest-sqlite", "./data.db"])
     assert result.exit_code != 0
     mock_ingest_sqlite.assert_not_called()
+
+
+# --- --ai flag ---
+
+_FAKE_RESULT = [
+    {
+        "text": "Refunds are accepted within 30 days.",
+        "source": "/docs/policy.txt",
+        "score": 0.91,
+        "chunk": 0,
+        "doc_title": "Policy",
+        "doc_author": "",
+        "doc_created": "",
+    }
+]
+
+
+@patch("synapse_core.cli.generate_answer", return_value="You can return within 30 days.")
+@patch("synapse_core.cli.detect_provider", return_value="anthropic")
+@patch("synapse_core.cli.query")
+def test_cli_query_ai_flag_shows_answer(mock_query, mock_detect, mock_generate):
+    mock_query.return_value = _FAKE_RESULT
+    result = CliRunner().invoke(cli, ["query", "refund policy", "--ai"])
+    assert result.exit_code == 0
+    assert "You can return within 30 days." in result.output
+    assert "anthropic" in result.output
+    assert "Sources" in result.output
+
+
+@patch("synapse_core.cli.generate_answer", return_value="Answer here.")
+@patch("synapse_core.cli.detect_provider", return_value="openai")
+@patch("synapse_core.cli.query")
+def test_cli_query_ai_explicit_provider(mock_query, mock_detect, mock_generate):
+    mock_query.return_value = _FAKE_RESULT
+    result = CliRunner().invoke(cli, ["query", "refund", "--ai", "--provider", "openai"])
+    assert result.exit_code == 0
+    mock_generate.assert_called_once()
+    assert mock_generate.call_args.kwargs["provider"] == "openai"
+
+
+@patch("synapse_core.cli.generate_answer", return_value="Answer here.")
+@patch("synapse_core.cli.detect_provider", return_value="ollama")
+@patch("synapse_core.cli.query")
+def test_cli_query_ai_model_override(mock_query, mock_detect, mock_generate):
+    mock_query.return_value = _FAKE_RESULT
+    result = CliRunner().invoke(cli, ["query", "refund", "--ai", "--model", "mistral"])
+    assert result.exit_code == 0
+    assert mock_generate.call_args.kwargs["model"] == "mistral"
+
+
+@patch("synapse_core.cli.detect_provider", return_value=None)
+@patch("synapse_core.cli.query")
+def test_cli_query_ai_no_provider_detected(mock_query, mock_detect):
+    mock_query.return_value = _FAKE_RESULT
+    result = CliRunner().invoke(cli, ["query", "refund", "--ai"])
+    assert result.exit_code != 0
+    assert "no AI provider" in result.output
+
+
+@patch("synapse_core.cli.generate_answer", side_effect=ImportError("pip install anthropic"))
+@patch("synapse_core.cli.detect_provider", return_value="anthropic")
+@patch("synapse_core.cli.query")
+def test_cli_query_ai_missing_sdk_shows_error(mock_query, mock_detect, mock_generate):
+    mock_query.return_value = _FAKE_RESULT
+    result = CliRunner().invoke(cli, ["query", "refund", "--ai"])
+    assert result.exit_code != 0
+    assert "Error:" in result.output
 
 
 # --- error handling ---
