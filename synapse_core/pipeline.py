@@ -6,7 +6,7 @@ import chromadb
 from chromadb.utils import embedding_functions
 
 from .chunker import chunk_text
-from .extractors import extract, is_supported
+from .extractors import extract, extract_metadata, is_supported
 from .logger import logger
 
 
@@ -126,8 +126,9 @@ def ingest(
             continue
 
         ids = [_make_id(file_path, source, i) for i in range(len(chunks))]
+        doc_meta = extract_metadata(file_path)
         metadatas = [
-            {"source_type": "file", "source": source_str, "chunk": i}
+            {"source_type": "file", "source": source_str, "chunk": i, **doc_meta}
             for i in range(len(chunks))
         ]
         if incremental:
@@ -169,6 +170,9 @@ def query(
         - score:       relevance score 0–1 (1 = perfect match)
         - distance:    raw ChromaDB L2 distance (lower = closer)
         - chunk:       chunk index within the source document
+        - doc_title:   document title (PDF/DOCX/HTML/PPTX), "" if unavailable
+        - doc_author:  document author, "" if unavailable
+        - doc_created: ISO-8601 creation date, "" if unavailable
     """
     try:
         collection = _get_collection(db_path, collection_name, embedding_model, create=False)
@@ -195,6 +199,9 @@ def query(
             "score": round(1 / (1 + dist), 4),
             "distance": round(dist, 4),
             "chunk": meta.get("chunk", 0),
+            "doc_title": meta.get("doc_title", ""),
+            "doc_author": meta.get("doc_author", ""),
+            "doc_created": meta.get("doc_created", ""),
         }
         for doc, meta, dist in zip(documents, metadatas, distances)
     ]

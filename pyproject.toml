@@ -1,6 +1,6 @@
 [project]
 name = "synapse-core"
-version = "0.4.0"
+version = "0.5.0"
 description = "Local RAG library — ingest files and SQLite, query semantically, pipe results into any AI agent"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -23,10 +23,15 @@ dependencies = [
     "sentence-transformers",
     "pypdf",
     "python-docx",
+    "click",
 ]
 
 [project.optional-dependencies]
 sentence = ["nltk"]
+formats = ["python-pptx", "openpyxl", "beautifulsoup4", "ebooklib", "odfpy"]
+
+[project.scripts]
+synapse = "synapse_core.cli:cli"
 
 [project.urls]
 Homepage = "https://pypi.org/project/synapse-core/"
@@ -41,6 +46,7 @@ build-backend = "hatchling.build"
 dev = [
     "pytest>=8.4.2",
     "nltk",
+    "click",
 ]
 
 [tool.pytest.ini_options]

@@ -4,7 +4,7 @@
 # ⚡Synapse
 
 [![CI](https://github.com/adm-crow/synapse/actions/workflows/ci.yml/badge.svg)](https://github.com/adm-crow/synapse/actions/workflows/ci.yml)
-[![tests](https://img.shields.io/badge/tests-80%20passing-brightgreen?style=flat-square)](tests/)
+[![tests](https://img.shields.io/badge/tests-98%20passing-brightgreen?style=flat-square)](tests/)
 [![python](https://img.shields.io/badge/python-3.11%2B-blue?style=flat-square&logo=python&logoColor=white)](https://www.python.org/)
 [![license](https://img.shields.io/badge/license-Apache%202.0-brightgreen?style=flat-square)](LICENSE)
 [![pypi](https://img.shields.io/pypi/v/synapse-core?style=flat-square&label=pypi)](https://pypi.org/project/synapse-core/)
@@ -19,13 +19,14 @@ Files / SQLite  ──►  Extract  ──►  Chunk  ──►  Embed  ──�
 
 | | Feature | Details |
 |---|---|---|
-| 📄 | **7 file formats** | `txt`, `md`, `csv`, `pdf`, `docx`, `json`, `jsonl` |
+| 📄 | **12 file formats** | `txt`, `md`, `csv`, `pdf`, `docx`, `json`, `jsonl`, `html`, `pptx`, `xlsx`, `epub`, `odt` |
 | 🗄️ | **SQLite ingestion** | Embed table records alongside files |
 | ✂️ | **Smart chunking** | Word-boundary and sentence-aware, configurable size & overlap |
 | 🧠 | **Local embeddings** | `sentence-transformers` — no API key, fully offline |
 | 💾 | **ChromaDB** | Persistent vector store, zero config |
 | 🔁 | **Idempotent** | Re-run safely — chunks are upserted, never duplicated |
-| 🔍 | **Semantic search** | `query()` returns ranked results with scores and source attribution |
+| 🔍 | **Semantic search** | `query()` returns ranked results with scores, source attribution, and document metadata |
+| 🖥️ | **CLI** | `synapse ingest`, `synapse query`, `synapse purge` and more |
 | 🤖 | **Agent agnostic** | Works with LangChain, LlamaIndex, or any custom agent |
 
 ---
@@ -40,7 +41,13 @@ or
 uv add synapse-core
 ```
 
-For sentence-aware chunking (`chunking="sentence"`), install the optional extra:
+For the extra file formats (`.html`, `.pptx`, `.xlsx`, `.epub`, `.odt`):
+
+```bash
+pip install synapse-core[formats]
+```
+
+For sentence-aware chunking (`chunking="sentence"`):
 
 ```bash
 pip install synapse-core[sentence]
@@ -83,6 +90,34 @@ ingest_sqlite("./data.db", table="articles")
 
 > [!TIP]
 > Both sources write to the **same ChromaDB collection** by default — your agent queries files and database records in a single call.
+
+---
+
+## CLI
+
+After installation a `synapse` command is available:
+
+```bash
+# Ingest a folder
+synapse ingest ./docs
+
+# Ingest incrementally (skip unchanged files)
+synapse ingest ./docs --incremental
+
+# Semantic search
+synapse query "what is the refund policy?"
+
+# List all indexed sources
+synapse sources
+
+# Remove chunks whose source files were deleted
+synapse purge
+
+# Wipe the entire collection
+synapse reset --yes
+```
+
+Every command accepts `--db` and `--collection` to target a specific ChromaDB path or collection name. Run `synapse --help` or `synapse <command> --help` for all options.
 
 ---
 
@@ -131,10 +166,13 @@ Each `query()` result is a plain dict — no ChromaDB types leak out:
 {
     "text":        "chunk content...",
     "source":      "/abs/path/to/file.txt",
-    "source_type": "file",    # "file" or "sqlite"
-    "score":       0.91,      # relevance 0–1, higher is better
-    "distance":    0.09,      # raw ChromaDB L2 distance
-    "chunk":       2,         # index within the source document
+    "source_type": "file",          # "file" or "sqlite"
+    "score":       0.91,            # relevance 0–1, higher is better
+    "distance":    0.09,            # raw ChromaDB L2 distance
+    "chunk":       2,               # index within the source document
+    "doc_title":   "Company Policy",# from PDF/DOCX/HTML/PPTX metadata, "" if unavailable
+    "doc_author":  "Jane Doe",      # document author, "" if unavailable
+    "doc_created": "2024-01-15T...",# ISO-8601 creation date, "" if unavailable
 }
 ```
 
@@ -234,7 +272,7 @@ query(
 )
 ```
 
-Returns a list of dicts: `text`, `source`, `source_type`, `score`, `distance`, `chunk`.
+Returns a list of dicts: `text`, `source`, `source_type`, `score`, `distance`, `chunk`, `doc_title`, `doc_author`, `doc_created`.
 
 </details>
 
@@ -269,9 +307,10 @@ synapse/
 ├── synapse_db/              ← ChromaDB writes here (auto-created)
 └── synapse_core/
     ├── __init__.py          ← public API
+    ├── cli.py               ← synapse ingest · query · sources · purge · reset
     ├── pipeline.py          ← ingest · query · purge · reset · sources
     ├── sqlite_ingester.py   ← ingest_sqlite
-    ├── extractors.py        ← txt · md · pdf · docx · csv · json · jsonl
+    ├── extractors.py        ← 12 formats + document metadata extraction
     ├── chunker.py           ← word-boundary & sentence-aware chunking
     └── logger.py            ← colored logger · setup_logging()
 ```
@@ -293,10 +332,10 @@ synapse/
 - [x] **PyPI release** — `pip install synapse-core`
 - [x] **Incremental ingestion** — skip unchanged files (SHA-256 hash check) for faster re-runs
 - [x] **Semantic chunking** — split on sentence and paragraph boundaries via `chunking="sentence"`
-- [ ] **More formats** — `.pptx`, `.xlsx`, `.html`, `.epub`, `.odt`
+- [x] **More formats** — `.html`, `.htm`, `.pptx`, `.xlsx`, `.epub`, `.odt` via `pip install synapse-core[formats]`
+- [x] **Document metadata** — extract and store PDF/DOCX/HTML/PPTX author, creation date, title automatically
+- [x] **CLI** — `synapse ingest`, `synapse query`, `synapse purge`, `synapse reset`, `synapse sources`
 - [ ] **File watcher** — `watch()` that monitors a folder and auto-ingests on change
 - [ ] **Pluggable embedders** — OpenAI, Cohere, HuggingFace Inference API as alternatives
 - [ ] **Pluggable vector stores** — Qdrant, FAISS, Weaviate as alternatives to ChromaDB
-- [ ] **Document metadata** — extract and store PDF author, creation date, title automatically
 - [ ] **Re-ranking** — cross-encoder re-ranking of retrieved chunks
-- [ ] **CLI** — `synapse ingest`, `synapse purge`, `synapse sources` terminal commands

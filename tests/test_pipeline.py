@@ -95,6 +95,44 @@ def test_upsert_payload_structure(mock_chroma, tmp_path):
     assert call_kwargs["metadatas"][0]["source_type"] == "file"
 
 
+def test_upsert_payload_contains_doc_metadata(mock_chroma, tmp_path):
+    """Every chunk metadata must contain the three doc_* fields."""
+    docs = make_docs_dir(tmp_path, ("test.txt", "word " * 100))
+    ingest(source_dir=docs, db_path=str(tmp_path / "db"), verbose=False)
+
+    for meta in mock_chroma.upsert.call_args.kwargs["metadatas"]:
+        assert "doc_title" in meta
+        assert "doc_author" in meta
+        assert "doc_created" in meta
+
+
+def test_query_result_contains_doc_metadata_fields(mock_chroma, tmp_path):
+    """query() results must always include doc_title, doc_author, doc_created."""
+    mock_chroma.query.return_value = {
+        "documents": [["chunk one"]],
+        "metadatas": [[{"source": "/a.txt", "source_type": "file", "chunk": 0,
+                        "doc_title": "My Doc", "doc_author": "Alice", "doc_created": "2024-01-01"}]],
+        "distances": [[0.1]],
+    }
+    results = query(text="test", db_path=str(tmp_path / "db"))
+    assert results[0]["doc_title"] == "My Doc"
+    assert results[0]["doc_author"] == "Alice"
+    assert results[0]["doc_created"] == "2024-01-01"
+
+
+def test_query_result_doc_metadata_defaults_to_empty_string(mock_chroma, tmp_path):
+    """Older chunks without doc_* metadata must return empty strings, not KeyError."""
+    mock_chroma.query.return_value = {
+        "documents": [["chunk one"]],
+        "metadatas": [[{"source": "/a.txt", "source_type": "file", "chunk": 0}]],
+        "distances": [[0.1]],
+    }
+    results = query(text="test", db_path=str(tmp_path / "db"))
+    assert results[0]["doc_title"] == ""
+    assert results[0]["doc_author"] == ""
+    assert results[0]["doc_created"] == ""
+
+
 # --- purge ---
 
 def test_purge_removes_stale_chunks(tmp_path):

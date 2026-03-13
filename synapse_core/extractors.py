@@ -1,6 +1,7 @@
 import csv
 import json
 from pathlib import Path
+from typing import Dict
 
 
 def extract_txt(path: Path) -> str:
@@ -62,14 +63,97 @@ def extract_jsonl(path: Path) -> str:
     return "\n".join(parts)
 
 
+def extract_html(path: Path) -> str:
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        raise ImportError("Install beautifulsoup4: pip install synapse-core[formats]")
+    soup = BeautifulSoup(path.read_text(encoding="utf-8", errors="ignore"), "html.parser")
+    for tag in soup(["script", "style", "nav", "footer", "head"]):
+        tag.decompose()
+    return soup.get_text(separator=" ", strip=True)
+
+
+def extract_pptx(path: Path) -> str:
+    try:
+        from pptx import Presentation
+    except ImportError:
+        raise ImportError("Install python-pptx: pip install synapse-core[formats]")
+    prs = Presentation(str(path))
+    texts = []
+    for slide in prs.slides:
+        for shape in slide.shapes:
+            if hasattr(shape, "text") and shape.text.strip():
+                texts.append(shape.text.strip())
+    return "\n".join(texts)
+
+
+def extract_xlsx(path: Path) -> str:
+    try:
+        import openpyxl
+    except ImportError:
+        raise ImportError("Install openpyxl: pip install synapse-core[formats]")
+    wb = openpyxl.load_workbook(str(path), read_only=True, data_only=True)
+    parts = []
+    for sheet in wb.worksheets:
+        for row in sheet.iter_rows(values_only=True):
+            row_text = ", ".join(str(c) for c in row if c is not None)
+            if row_text.strip():
+                parts.append(row_text)
+    wb.close()
+    return "\n".join(parts)
+
+
+def extract_epub(path: Path) -> str:
+    try:
+        import ebooklib
+        from ebooklib import epub
+        from bs4 import BeautifulSoup
+    except ImportError:
+        raise ImportError(
+            "Install ebooklib and beautifulsoup4: pip install synapse-core[formats]"
+        )
+    book = epub.read_epub(str(path))
+    texts = []
+    for item in book.get_items_of_type(ebooklib.ITEM_DOCUMENT):
+        soup = BeautifulSoup(item.get_content(), "html.parser")
+        text = soup.get_text(separator=" ", strip=True)
+        if text:
+            texts.append(text)
+    return "\n".join(texts)
+
+
+def extract_odt(path: Path) -> str:
+    try:
+        from odf.opendocument import load
+        from odf.text import P
+    except ImportError:
+        raise ImportError("Install odfpy: pip install synapse-core[formats]")
+    doc = load(str(path))
+    parts = []
+    for para in doc.getElementsByType(P):
+        text = "".join(
+            node.data for node in para.childNodes if hasattr(node, "data")
+        )
+        if text.strip():
+            parts.append(text)
+    return "\n".join(parts)
+
+
 EXTRACTORS = {
-    ".txt": extract_txt,
-    ".md": extract_txt,
-    ".pdf": extract_pdf,
+    ".txt":  extract_txt,
+    ".md":   extract_txt,
+    ".pdf":  extract_pdf,
     ".docx": extract_docx,
-    ".csv": extract_csv,
+    ".csv":  extract_csv,
     ".json": extract_json,
-    ".jsonl": extract_jsonl,
+    ".jsonl":extract_jsonl,
+    ".html": extract_html,
+    ".htm":  extract_html,
+    ".pptx": extract_pptx,
+    ".xlsx": extract_xlsx,
+    ".epub": extract_epub,
+    ".odt":  extract_odt,
 }
 
 
@@ -83,3 +167,64 @@ def extract(path: Path) -> str:
 
 def is_supported(path: Path) -> bool:
     return path.suffix.lower() in EXTRACTORS
+
+
+def extract_metadata(path: Path) -> Dict[str, str]:
+    """Extract document-level metadata (title, author, created) where available.
+
+    Returns a dict with keys ``doc_title``, ``doc_author``, ``doc_created``.
+    Missing or unreadable fields are returned as empty strings.
+    Guaranteed never to raise.
+    """
+    meta: Dict[str, str] = {"doc_title": "", "doc_author": "", "doc_created": ""}
+    suffix = path.suffix.lower()
+
+    if suffix == ".pdf":
+        try:
+            from pypdf import PdfReader
+            info = PdfReader(str(path)).metadata
+            if info:
+                meta["doc_title"] = info.title or ""
+                meta["doc_author"] = info.author or ""
+                if info.creation_date:
+                    meta["doc_created"] = info.creation_date.isoformat()
+        except Exception:
+            pass
+
+    elif suffix == ".docx":
+        try:
+            from docx import Document
+            props = Document(str(path)).core_properties
+            meta["doc_title"] = props.title or ""
+            meta["doc_author"] = props.author or ""
+            if props.created:
+                meta["doc_created"] = props.created.isoformat()
+        except Exception:
+            pass
+
+    elif suffix in (".html", ".htm"):
+        try:
+            from bs4 import BeautifulSoup
+            soup = BeautifulSoup(
+                path.read_text(encoding="utf-8", errors="ignore"), "html.parser"
+            )
+            if soup.title and soup.title.string:
+                meta["doc_title"] = soup.title.string.strip()
+            author_tag = soup.find("meta", attrs={"name": "author"})
+            if author_tag:
+                meta["doc_author"] = author_tag.get("content", "")  # type: ignore[arg-type]
+        except Exception:
+            pass
+
+    elif suffix == ".pptx":
+        try:
+            from pptx import Presentation
+            props = Presentation(str(path)).core_properties
+            meta["doc_title"] = props.title or ""
+            meta["doc_author"] = props.author or ""
+            if props.created:
+                meta["doc_created"] = props.created.isoformat()
+        except Exception:
+            pass
+
+    return meta
