@@ -165,11 +165,6 @@ synapse query "auth flow" --db ./my_store --collection docs
 
 synapse handles ingestion and retrieval — you wire it to any LLM. Here's a complete example with the **Anthropic SDK**:
 
-```bash
-pip install synapse-core anthropic
-export ANTHROPIC_API_KEY="sk-ant-..."
-```
-
 ```python
 import anthropic
 from synapse_core import ingest, query
@@ -178,7 +173,7 @@ from synapse_core import ingest, query
 ingest("./docs")
 
 # 2 — build a RAG-powered assistant
-client = anthropic.Anthropic()
+client = anthropic.Anthropic(api_key="sk-ant-...)
 
 def ask(question: str) -> str:
     chunks = query(question, n_results=4)
