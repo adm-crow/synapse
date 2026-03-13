@@ -29,7 +29,7 @@ dependencies = [
 sentence = ["nltk"]
 
 [project.urls]
-Homepage = "https://github.com/adm-crow/synapse"
+Homepage = "https://pypi.org/project/synapse-core/"
 Repository = "https://github.com/adm-crow/synapse"
 Issues = "https://github.com/adm-crow/synapse/issues"
 

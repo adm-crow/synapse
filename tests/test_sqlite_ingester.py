@@ -177,3 +177,21 @@ def test_ingest_sqlite_template_null_value_renders_empty(mock_chroma, tmp_path):
     )
     docs = mock_chroma.upsert.call_args.kwargs["documents"]
     assert all("None" not in d for d in docs)
+
+
+# --- sentence chunking ---
+
+def test_ingest_sqlite_sentence_chunking(mock_chroma, tmp_path):
+    """chunking='sentence' must still produce chunks and call upsert."""
+    pytest.importorskip("nltk")
+    db = create_test_db(
+        tmp_path, "articles",
+        ["id INTEGER PRIMARY KEY", "body TEXT"],
+        [(1, "The sky is blue. The grass is green. " * 20)],
+    )
+    ingest_sqlite(
+        db_path=db, table="articles",
+        chroma_path=str(tmp_path / "db"),
+        chunking="sentence", verbose=False,
+    )
+    assert mock_chroma.upsert.called

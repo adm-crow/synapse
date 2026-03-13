@@ -27,14 +27,10 @@ def _file_hash(path: Path) -> str:
 
 def _get_source_chunks(collection, source_str: str) -> dict:
     """Return all ChromaDB entries for a given source path."""
-    try:
-        return collection.get(
-            where={"source": {"$eq": source_str}},
-            include=["metadatas"],
-        )
-    except Exception as e:
-        logger.debug("Could not query existing chunks for %s: %s", source_str, e)
-        return {"ids": [], "metadatas": []}
+    return collection.get(
+        where={"source": {"$eq": source_str}},
+        include=["metadatas"],
+    )
 
 
 def _get_collection(db_path: str, collection_name: str, embedding_model: str, create: bool = True):
@@ -92,6 +88,7 @@ def ingest(
 
     collection = _get_collection(db_path, collection_name, embedding_model)
 
+    current_hash: str = ""
     for file_path in files:
         source_str = str(file_path.resolve())
 
@@ -135,7 +132,7 @@ def ingest(
         ]
         if incremental:
             for meta in metadatas:
-                meta["file_hash"] = current_hash  # type: ignore[possibly-undefined]
+                meta["file_hash"] = current_hash
 
         # Upsert so re-running is idempotent
         collection.upsert(documents=chunks, ids=ids, metadatas=metadatas)  # type: ignore[arg-type]
@@ -179,9 +176,12 @@ def query(
         raise ValueError(
             f"Collection '{collection_name}' not found in '{db_path}' — run ingest() first."
         )
+    count = collection.count()
+    if count == 0:
+        return []
     results = collection.query(
         query_texts=[text],
-        n_results=n_results,
+        n_results=min(n_results, count),
         include=["documents", "metadatas", "distances"],
     )
     documents = results["documents"][0]  # type: ignore[index]

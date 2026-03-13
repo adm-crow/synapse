@@ -16,6 +16,7 @@ def make_docs_dir(tmp_path, *filenames_and_contents):
 def mock_chroma():
     """Patch chromadb so tests run without installing it or hitting disk."""
     collection = MagicMock()
+    collection.count.return_value = 1000  # large enough for all query tests
     client = MagicMock()
     client.get_or_create_collection.return_value = collection
     client.get_collection.return_value = collection  # used by query()
@@ -359,3 +360,55 @@ def test_non_incremental_does_not_store_hash(mock_chroma, tmp_path):
 
     metadatas = mock_chroma.upsert.call_args.kwargs["metadatas"]
     assert all("file_hash" not in m for m in metadatas)
+
+
+# --- sentence chunking ---
+
+def test_ingest_sentence_chunking(mock_chroma, tmp_path):
+    """chunking='sentence' must still produce chunks and call upsert."""
+    pytest.importorskip("nltk")
+    text = "The sky is blue. The grass is green. " * 30
+    docs = make_docs_dir(tmp_path, ("doc.txt", text))
+    ingest(source_dir=docs, db_path=str(tmp_path / "db"), chunking="sentence", verbose=False)
+    assert mock_chroma.upsert.called
+
+
+# --- query: n_results clamping ---
+
+def test_query_clamps_n_results_to_collection_size(tmp_path):
+    """query() must not crash when n_results > number of documents in collection."""
+    collection = MagicMock()
+    collection.count.return_value = 2
+    collection.query.return_value = {
+        "documents": [["chunk one", "chunk two"]],
+        "metadatas": [[
+            {"source": "/a.txt", "source_type": "file", "chunk": 0},
+            {"source": "/b.txt", "source_type": "file", "chunk": 0},
+        ]],
+        "distances": [[0.1, 0.2]],
+    }
+    client = MagicMock()
+    client.get_collection.return_value = collection
+
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client), \
+         patch("synapse_core.pipeline.embedding_functions.SentenceTransformerEmbeddingFunction"):
+        results = query(text="test", db_path=str(tmp_path / "db"), n_results=10)
+
+    called_n = collection.query.call_args.kwargs["n_results"]
+    assert called_n == 2
+    assert len(results) == 2
+
+
+def test_query_returns_empty_on_empty_collection(tmp_path):
+    """query() must return [] immediately when the collection is empty."""
+    collection = MagicMock()
+    collection.count.return_value = 0
+    client = MagicMock()
+    client.get_collection.return_value = collection
+
+    with patch("synapse_core.pipeline.chromadb.PersistentClient", return_value=client), \
+         patch("synapse_core.pipeline.embedding_functions.SentenceTransformerEmbeddingFunction"):
+        results = query(text="test", db_path=str(tmp_path / "db"))
+
+    collection.query.assert_not_called()
+    assert results == []

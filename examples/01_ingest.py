@@ -22,6 +22,8 @@ if __name__ == "__main__":
         collection_name="synapse",
         chunk_size=1000,
         overlap=200,
+        # incremental=True,        # skip files whose content hasn't changed (SHA-256)
+        # chunking="sentence",     # sentence-aware splitting (pip install synapse-core[sentence])
         verbose=True,
     )
 
@@ -32,8 +34,9 @@ if __name__ == "__main__":
     ingest_sqlite(
         db_path="./data.db",
         table="articles",
-        # columns=["title", "body"],  # optional: restrict which columns to embed
-        # row_template="{title}: {body}",  # optional: custom row format
+        # columns=["title", "body"],        # optional: restrict which columns to embed
+        # row_template="{title}: {body}",   # optional: custom row format
+        # chunking="sentence",              # sentence-aware splitting
         chroma_path="./synapse_db",
         collection_name="synapse",
         verbose=True,

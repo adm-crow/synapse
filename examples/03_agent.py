@@ -1,51 +1,60 @@
 """
-Example 3 — Connecting a RAG agent
-====================================
+Example 3 — Connecting a RAG agent (Anthropic SDK)
+====================================================
 
-Shows the full RAG pattern:
-  1. Retrieve relevant chunks with synapse_core.query()
-  2. Build a prompt with the retrieved context
-  3. Call your LLM of choice
+Full RAG pattern using the Anthropic SDK:
+  1. Ingest your docs once with synapse
+  2. On every question, retrieve the most relevant chunks
+  3. Pass the chunks as context to Claude
 
-The `call_llm` function below is a stub — replace it with any real LLM:
-  - Anthropic:  anthropic.Anthropic().messages.create(...)
-  - OpenAI:     openai.OpenAI().chat.completions.create(...)
-  - Ollama:     requests.post("http://localhost:11434/api/generate", ...)
+Setup:
+  pip install synapse-core anthropic
+  export ANTHROPIC_API_KEY="sk-ant-..."
+
+For other LLM providers, replace the `ask()` body:
+  - OpenAI:  openai.OpenAI().chat.completions.create(...)
+  - Ollama:  requests.post("http://localhost:11434/api/generate", ...)
 """
 
-from synapse_core import query
+import anthropic
+
+from synapse_core import ingest, query
+
+# --- Step 1: ingest your docs once -----------------------------------------
+# Comment this out after the first run — the collection persists on disk.
+ingest("./docs")
+
+# --- Step 2: set up the Anthropic client ------------------------------------
+client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY from environment
 
 
-# --- LLM stub (replace with your real provider) --------------------------
-
-def call_llm(prompt: str) -> str:
-    """Stub — replace with your actual LLM call."""
-    return f"[LLM stub] received {len(prompt)} chars of context + question."
-
-
-# --- RAG agent ------------------------------------------------------------
+# --- Step 3: RAG-powered ask function ---------------------------------------
 
 def ask(question: str, n_results: int = 4) -> str:
-    # 1. Retrieve the most relevant chunks
-    results = query(text=question, n_results=n_results)
+    # Retrieve the most relevant chunks from your indexed docs
+    chunks = query(question, n_results=n_results)
 
-    # 2. Build context block with source attribution
-    context_parts = [
+    # Build context block with source attribution
+    context = "\n\n".join(
         f"[source: {r['source']}]\n{r['text']}"
-        for r in results
-    ]
-    context = "\n\n---\n\n".join(context_parts)
-
-    # 3. Build prompt and call the LLM
-    prompt = (
-        f"Use the following context to answer the question.\n\n"
-        f"{context}\n\n"
-        f"Question: {question}"
+        for r in chunks
     )
-    return call_llm(prompt)
+
+    response = client.messages.create(
+        model="claude-opus-4-6",
+        max_tokens=1024,
+        system=(
+            "You are a helpful assistant. "
+            "Answer the user's question using ONLY the context below. "
+            "If the answer is not in the context, say so.\n\n"
+            f"CONTEXT:\n{context}"
+        ),
+        messages=[{"role": "user", "content": question}],
+    )
+    return response.content[0].text
 
 
-# --- Run ------------------------------------------------------------------
+# --- Run --------------------------------------------------------------------
 
 if __name__ == "__main__":
     answer = ask("What is the refund policy?")
