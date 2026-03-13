@@ -100,7 +100,7 @@ def test_cli_reset_aborts_without_confirmation(mock_reset):
 def test_cli_version():
     result = CliRunner().invoke(cli, ["--version"])
     assert result.exit_code == 0
-    assert "0.5.1" in result.output
+    assert "0.5.2" in result.output
 
 
 # --- ingest-sqlite ---

@@ -1,6 +1,6 @@
 [project]
 name = "synapse-core"
-version = "0.5.1"
+version = "0.5.2"
 description = "Local RAG library — ingest files and SQLite, query semantically, pipe results into any AI agent"
 readme = "README.md"
 requires-python = ">=3.11"
